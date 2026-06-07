@@ -29,6 +29,7 @@ public class Response {
     //data output optionals
     private UserDTO user;
     private List<UserDTO> users;
+    private List<UserTreeNodeDTO> userTree;
 
     private SupplierDTO supplier;
     private List<SupplierDTO> suppliers;

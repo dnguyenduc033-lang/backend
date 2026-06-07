@@ -2,7 +2,6 @@ package com.phegondev.inventorymgtsystem.controllers;
 
 import com.phegondev.inventorymgtsystem.dtos.Response;
 import com.phegondev.inventorymgtsystem.dtos.UserDTO;
-import com.phegondev.inventorymgtsystem.models.User;
 import com.phegondev.inventorymgtsystem.services.UserService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -15,13 +14,34 @@ import org.springframework.web.bind.annotation.*;
 @RequiredArgsConstructor
 public class UserController {
 
-
     private final UserService userService;
 
     @GetMapping("/all")
     @PreAuthorize("hasAuthority('ADMIN')")
     public ResponseEntity<Response> getAllUsers() {
         return ResponseEntity.ok(userService.getAllUsers());
+    }
+
+    @GetMapping("/current")
+    public ResponseEntity<Response> getCurrentUser() {
+        return ResponseEntity.ok(userService.getCurrentUserProfile());
+    }
+
+    @GetMapping("/org-tree")
+    @PreAuthorize("hasAuthority('ADMIN')")
+    public ResponseEntity<Response> getOrgTree() {
+        return ResponseEntity.ok(userService.getOrgTree());
+    }
+
+    @GetMapping("/transactions/{userId}")
+    public ResponseEntity<Response> getUserAndTransactions(@PathVariable Long userId) {
+        return ResponseEntity.ok(userService.getUserTransactions(userId));
+    }
+
+    @GetMapping("/{id}/children")
+    @PreAuthorize("hasAuthority('ADMIN')")
+    public ResponseEntity<Response> getUserChildren(@PathVariable Long id) {
+        return ResponseEntity.ok(userService.getUserChildren(id));
     }
 
     @GetMapping("/{id}")
@@ -39,18 +59,4 @@ public class UserController {
     public ResponseEntity<Response> deleteUser(@PathVariable Long id) {
         return ResponseEntity.ok(userService.deleteUser(id));
     }
-
-    @GetMapping("/transactions/{userId}")
-    public ResponseEntity<Response> getUserAndTransactions(@PathVariable Long userId) {
-        return ResponseEntity.ok(userService.getUserTransactions(userId));
-    }
-
-    @GetMapping("/current")
-    public ResponseEntity<User> getCurrentUser(){
-        return ResponseEntity.ok(userService.getCurrentLoggedInUser());
-    }
-
-
-
-
 }

@@ -15,6 +15,8 @@ public interface UserService {
 
     User getCurrentLoggedInUser();
 
+    Response getCurrentUserProfile();
+
     Response getUserById(Long id);
 
     Response updateUser(Long id, UserDTO userDTO);
@@ -22,5 +24,9 @@ public interface UserService {
     Response deleteUser(Long id);
 
     Response getUserTransactions(Long id);
+
+    Response getOrgTree();
+
+    Response getUserChildren(Long id);
 
 }

@@ -4,7 +4,10 @@ import com.phegondev.inventorymgtsystem.dtos.LoginRequest;
 import com.phegondev.inventorymgtsystem.dtos.RegisterRequest;
 import com.phegondev.inventorymgtsystem.dtos.Response;
 import com.phegondev.inventorymgtsystem.dtos.UserDTO;
+import com.phegondev.inventorymgtsystem.dtos.UserTreeNodeDTO;
 import com.phegondev.inventorymgtsystem.enums.UserRole;
+import com.phegondev.inventorymgtsystem.exceptions.BadRequestException;
+import com.phegondev.inventorymgtsystem.exceptions.ConflictException;
 import com.phegondev.inventorymgtsystem.exceptions.InvalidCredentialsException;
 import com.phegondev.inventorymgtsystem.exceptions.NotFoundException;
 import com.phegondev.inventorymgtsystem.models.User;
@@ -14,14 +17,17 @@ import com.phegondev.inventorymgtsystem.services.UserService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.modelmapper.ModelMapper;
-import org.modelmapper.TypeToken;
-import org.springframework.data.domain.Sort;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
+import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -82,12 +88,16 @@ public class UserServiceImpl implements UserService {
     @Override
     public Response getAllUsers() {
 
-        List<User> users = userRepository.findAll(Sort.by(Sort.Direction.DESC, "id"));
+        List<User> users = userRepository.findAllWithManagerOrderedByName();
 
-        users.forEach(user -> user.setTransactions(null));
+        users.forEach(user -> {
+            user.setTransactions(null);
+            user.setSubordinates(null);
+        });
 
-        List<UserDTO> userDTOS = modelMapper.map(users, new TypeToken<List<UserDTO>>() {
-        }.getType());
+        List<UserDTO> userDTOS = users.stream()
+                .map(this::toUserDTO)
+                .toList();
 
         return Response.builder()
                 .status(200)
@@ -110,18 +120,25 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
-    public Response getUserById(Long id) {
-
-        User user = userRepository.findById(id).orElseThrow(() -> new NotFoundException("User Not Found"));
-
-        UserDTO userDTO = modelMapper.map(user, UserDTO.class);
-
-        userDTO.setTransactions(null);
+    public Response getCurrentUserProfile() {
+        User user = getCurrentLoggedInUser();
 
         return Response.builder()
                 .status(200)
                 .message("success")
-                .user(userDTO)
+                .user(toUserDTO(user))
+                .build();
+    }
+
+    @Override
+    public Response getUserById(Long id) {
+
+        User user = userRepository.findById(id).orElseThrow(() -> new NotFoundException("User Not Found"));
+
+        return Response.builder()
+                .status(200)
+                .message("success")
+                .user(toUserDTO(user))
                 .build();
     }
 
@@ -134,6 +151,12 @@ public class UserServiceImpl implements UserService {
         if (userDTO.getPhoneNumber() != null) existingUser.setPhoneNumber(userDTO.getPhoneNumber());
         if (userDTO.getName() != null) existingUser.setName(userDTO.getName());
         if (userDTO.getRole() != null) existingUser.setRole(userDTO.getRole());
+
+        if (Boolean.TRUE.equals(userDTO.getClearManager())) {
+            existingUser.setManager(null);
+        } else if (userDTO.getManagerId() != null) {
+            assignManager(existingUser, id, userDTO.getManagerId());
+        }
 
         if (userDTO.getPassword() != null && !userDTO.getPassword().isEmpty()) {
             existingUser.setPassword(passwordEncoder.encode(userDTO.getPassword()));
@@ -149,6 +172,10 @@ public class UserServiceImpl implements UserService {
     @Override
     public Response deleteUser(Long id) {
         userRepository.findById(id).orElseThrow(() -> new NotFoundException("User Not Found"));
+
+        if (userRepository.existsByManagerId(id)) {
+            throw new ConflictException("Cannot delete user with direct reports. Reassign subordinates first.");
+        }
 
         userRepository.deleteById(id);
 
@@ -166,19 +193,120 @@ public class UserServiceImpl implements UserService {
 
         UserDTO userDTO = modelMapper.map(user, UserDTO.class);
 
-        // --- BẮT ĐẦU PHẦN THÊM VÀO: Kiểm tra null trước khi duyệt mảng để tránh lỗi NullPointerException ---
         if (userDTO.getTransactions() != null && !userDTO.getTransactions().isEmpty()) {
             userDTO.getTransactions().forEach(transactionDTO -> {
                 transactionDTO.setUser(null);
                 transactionDTO.setSupplier(null);
             });
         }
-        // ------
 
         return Response.builder()
                 .status(200)
                 .message("success")
                 .user(userDTO)
                 .build();
+    }
+
+    @Override
+    public Response getOrgTree() {
+        List<User> allUsers = userRepository.findAllWithManagerOrderedByName();
+        Map<Long, List<User>> childrenByManagerId = groupByManagerId(allUsers);
+
+        List<UserTreeNodeDTO> tree = allUsers.stream()
+                .filter(user -> user.getManager() == null)
+                .map(root -> toTreeNode(root, childrenByManagerId))
+                .toList();
+
+        return Response.builder()
+                .status(200)
+                .message("success")
+                .userTree(tree)
+                .build();
+    }
+
+    @Override
+    public Response getUserChildren(Long id) {
+        userRepository.findById(id).orElseThrow(() -> new NotFoundException("User Not Found"));
+
+        List<UserTreeNodeDTO> children = userRepository.findByManagerIdOrderByNameAsc(id).stream()
+                .map(user -> toTreeNode(user, Map.of()))
+                .toList();
+
+        return Response.builder()
+                .status(200)
+                .message("success")
+                .userTree(children)
+                .build();
+    }
+
+    private UserDTO toUserDTO(User user) {
+        UserDTO userDTO = modelMapper.map(user, UserDTO.class);
+        userDTO.setTransactions(null);
+
+        if (user.getManager() != null) {
+            userDTO.setManagerId(user.getManager().getId());
+            userDTO.setManagerName(user.getManager().getName());
+        }
+
+        return userDTO;
+    }
+
+    private Map<Long, List<User>> groupByManagerId(List<User> users) {
+        return users.stream()
+                .filter(user -> user.getManager() != null)
+                .collect(Collectors.groupingBy(user -> user.getManager().getId()));
+    }
+
+    private UserTreeNodeDTO toTreeNode(User user, Map<Long, List<User>> childrenByManagerId) {
+        List<User> directReports = childrenByManagerId.getOrDefault(user.getId(), List.of());
+
+        return UserTreeNodeDTO.builder()
+                .id(user.getId())
+                .name(user.getName())
+                .email(user.getEmail())
+                .phoneNumber(user.getPhoneNumber())
+                .role(user.getRole())
+                .managerId(user.getManager() != null ? user.getManager().getId() : null)
+                .hasChildren(!directReports.isEmpty())
+                .children(directReports.isEmpty()
+                        ? new ArrayList<>()
+                        : directReports.stream()
+                                .map(child -> toTreeNode(child, childrenByManagerId))
+                                .toList())
+                .build();
+    }
+
+    private void assignManager(User existingUser, Long userId, Long managerId) {
+        if (managerId.equals(userId)) {
+            throw new BadRequestException("User cannot be their own manager");
+        }
+
+        User manager = userRepository.findById(managerId)
+                .orElseThrow(() -> new NotFoundException("Manager Not Found"));
+
+        if (createsManagementCycle(userId, managerId)) {
+            throw new BadRequestException("Manager assignment would create a cycle in the org chart");
+        }
+
+        existingUser.setManager(manager);
+    }
+
+    private boolean createsManagementCycle(Long userId, Long managerId) {
+        Long currentManagerId = managerId;
+        Set<Long> visited = new HashSet<>();
+
+        while (currentManagerId != null) {
+            if (currentManagerId.equals(userId)) {
+                return true;
+            }
+            if (!visited.add(currentManagerId)) {
+                return false;
+            }
+            currentManagerId = userRepository.findById(currentManagerId)
+                    .map(user -> user.getManager() != null ? user.getManager().getId() : null)
+                    .orElse(null);
+        }
+
+        return false;
     }
 }
