@@ -23,4 +23,6 @@ public class SupplierDTO {
     private String contactInfo;
 
     private String address;
+
+    private String email;
 }

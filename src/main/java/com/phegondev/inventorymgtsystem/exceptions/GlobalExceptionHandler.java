@@ -49,4 +49,24 @@ public class GlobalExceptionHandler {
 
         return new ResponseEntity<>(response, HttpStatus.BAD_REQUEST);
     }
+
+    //MỚI----------------------------------
+    @ExceptionHandler(DuplicateSerialNumberException.class)
+    public ResponseEntity<Response> handleDuplicateSerial(DuplicateSerialNumberException ex) {
+        Response response = Response.builder()
+                .status(400)
+                .message(ex.getMessage())
+                .build();
+        return new ResponseEntity<>(response, HttpStatus.BAD_REQUEST);
+    }
+
+    @ExceptionHandler(ProductItemNotFoundException.class)
+    public ResponseEntity<Response> handleProductItemNotFound(ProductItemNotFoundException ex) {
+        Response response = Response.builder()
+                .status(404)
+                .message(ex.getMessage())
+                .build();
+        return new ResponseEntity<>(response, HttpStatus.NOT_FOUND);
+    }
+    //--------------------------------------
 }

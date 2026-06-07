@@ -1,5 +1,6 @@
 package com.phegondev.inventorymgtsystem.models;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
 import lombok.AllArgsConstructor;
@@ -15,7 +16,7 @@ import java.util.List;
 @Table(name = "categories")
 @Data
 @Builder
-
+@JsonIgnoreProperties({"products"})
 public class Category {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -23,6 +24,9 @@ public class Category {
 
     @NotBlank(message = "Name is required")
     private String name;
+
+    @Column(name = "required_specs", columnDefinition = "TEXT")
+    private String requiredSpecs;
 
     @OneToMany(mappedBy = "category", cascade = CascadeType.ALL)
     private List<Product> products;
@@ -32,6 +36,7 @@ public class Category {
         return "Category{" +
                 "id=" + id +
                 ", name='" + name + '\'' +
+                ", requiredSpecs='" + requiredSpecs + '\'' +
                 '}';
     }
 }

@@ -1,5 +1,6 @@
 package com.phegondev.inventorymgtsystem.services.implement;
 
+import com.phegondev.inventorymgtsystem.dtos.ProductItemDTO;
 import com.phegondev.inventorymgtsystem.dtos.Response;
 import com.phegondev.inventorymgtsystem.dtos.TransactionDTO;
 import com.phegondev.inventorymgtsystem.dtos.TransactionRequest;
@@ -8,9 +9,11 @@ import com.phegondev.inventorymgtsystem.enums.TransactionType;
 import com.phegondev.inventorymgtsystem.exceptions.NameValueRequiredException;
 import com.phegondev.inventorymgtsystem.exceptions.NotFoundException;
 import com.phegondev.inventorymgtsystem.models.Product;
+import com.phegondev.inventorymgtsystem.models.ProductItem;
 import com.phegondev.inventorymgtsystem.models.Supplier;
 import com.phegondev.inventorymgtsystem.models.Transaction;
 import com.phegondev.inventorymgtsystem.models.User;
+import com.phegondev.inventorymgtsystem.repositories.ProductItemRepository;
 import com.phegondev.inventorymgtsystem.repositories.ProductRepository;
 import com.phegondev.inventorymgtsystem.repositories.SupplierRepository;
 import com.phegondev.inventorymgtsystem.repositories.TransactionRepository;
@@ -27,150 +30,274 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.io.InputStream;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
+import java.math.RoundingMode;
 
 @Service
-@Slf4j
 @RequiredArgsConstructor
+@Slf4j
 public class TransactionServiceImpl implements TransactionService {
 
     private final TransactionRepository transactionRepository;
     private final ProductRepository productRepository;
     private final SupplierRepository supplierRepository;
+    private final ProductItemRepository productItemRepository;
     private final UserService userService;
     private final ModelMapper modelMapper;
 
     @Override
     public Response purchase(TransactionRequest transactionRequest) {
-
         Long productId = transactionRequest.getProductId();
-        Long supplierId = transactionRequest.getSupplierId();
         Integer quantity = transactionRequest.getQuantity();
-
-        if (supplierId == null) throw new NameValueRequiredException("Supplier Id is Required");
 
         Product product = productRepository.findById(productId)
                 .orElseThrow(() -> new NotFoundException("Product Not Found"));
+        User currentUser = userService.getCurrentLoggedInUser();
 
-        Supplier supplier = supplierRepository.findById(supplierId)
+        if (transactionRequest.getSupplierId() == null) {
+            throw new NameValueRequiredException("Nhập hàng mới bắt buộc phải chọn Nhà cung cấp");
+        }
+        if (transactionRequest.getPurchasePrice() == null || transactionRequest.getPurchasePrice().compareTo(BigDecimal.ZERO) <= 0) {
+            throw new NameValueRequiredException("Đơn giá nhập kho là bắt buộc và phải lớn hơn 0");
+        }
+
+        Supplier supplier = supplierRepository.findById(transactionRequest.getSupplierId())
                 .orElseThrow(() -> new NotFoundException("Supplier Not Found"));
 
-        User user = userService.getCurrentLoggedInUser();
-
-        //update the stock quantity and re-save
-        product.setStockQuantity(product.getStockQuantity() + quantity);
-        productRepository.save(product);
-
-        //create a transaction
+        BigDecimal purchasePrice = transactionRequest.getPurchasePrice();
+        BigDecimal totalPrice = purchasePrice.multiply(BigDecimal.valueOf(quantity));
         Transaction transaction = Transaction.builder()
                 .transactionType(TransactionType.PURCHASE)
                 .status(TransactionStatus.COMPLETED)
                 .product(product)
-                .user(user)
                 .supplier(supplier)
                 .totalProducts(quantity)
-                .totalPrice(product.getPrice().multiply(BigDecimal.valueOf(quantity)))
+                .totalPrice(totalPrice)
+                .purchasePrice(purchasePrice)
+                .purchaseType("NEW_IMPORT")
+                .profit(BigDecimal.ZERO)
                 .description(transactionRequest.getDescription())
                 .note(transactionRequest.getNote())
+                .user(currentUser)
                 .build();
 
         transactionRepository.save(transaction);
+
+        product.setStockQuantity(product.getStockQuantity() + quantity);
+        productRepository.save(product);
+
+        List<String> serialNumbers = transactionRequest.getSerialNumbers();
+        if (serialNumbers != null && !serialNumbers.isEmpty()) {
+            for (String serial : serialNumbers) {
+                ProductItem item = new ProductItem();
+                item.setProduct(product);
+                item.setSerialNumber(serial);
+                item.setStatus("AVAILABLE");
+                productItemRepository.save(item);
+            }
+        }
+
         return Response.builder()
                 .status(200)
-                .message("Purchase Made successfully")
+                .message("Nhập kho thành công")
+                .build();
+    }
+
+    @Override
+    public Response returnFromCustomer(TransactionRequest transactionRequest) {
+        Long productId = transactionRequest.getProductId();
+        Integer quantity = transactionRequest.getQuantity();
+
+        Product product = productRepository.findById(productId)
+                .orElseThrow(() -> new NotFoundException("Product Not Found"));
+
+        List<String> serialNumbers = transactionRequest.getSerialNumbers();
+        if (serialNumbers != null && !serialNumbers.isEmpty()) {
+            for (String serial : serialNumbers) {
+                ProductItem item = productItemRepository.findBySerialNumber(serial)
+                        .orElseThrow(() -> new NotFoundException("Không tìm thấy mã Sê-ri " + serial));
+
+                if (!"SOLD".equals(item.getStatus())) {
+                    throw new NameValueRequiredException("Mã Sê-ri " + serial + " chưa được bán ra.");
+                }
+                item.setStatus("AVAILABLE");
+                productItemRepository.save(item);
+            }
+        }
+
+        product.setStockQuantity(product.getStockQuantity() + quantity);
+        productRepository.save(product);
+
+        User currentUser = userService.getCurrentLoggedInUser();
+
+        // Lấy giao dịch SALE gần nhất để biết giá bán và profit đã ghi nhận
+        Transaction lastSale = transactionRepository
+                .findTopByProductIdAndTransactionTypeOrderByIdDesc(productId, TransactionType.SALE)
+                .orElse(null);
+
+        // Tính giá bán thực tế (dùng giá bán lúc bán, fallback về giá hiện tại)
+        BigDecimal sellPrice = (lastSale != null && lastSale.getTotalPrice() != null)
+                ? lastSale.getTotalPrice().divide(BigDecimal.valueOf(lastSale.getTotalProducts()), 2, RoundingMode.HALF_UP)
+                : product.getPrice();
+        BigDecimal totalReturnPrice = sellPrice.multiply(BigDecimal.valueOf(quantity));
+
+        // Tính profit cần trừ (âm vì là hoàn trả)
+        BigDecimal profitToDeduct = (lastSale != null && lastSale.getProfit() != null && lastSale.getTotalProducts() > 0)
+                ? lastSale.getProfit()
+                .divide(BigDecimal.valueOf(lastSale.getTotalProducts()), 2, RoundingMode.HALF_UP)
+                .multiply(BigDecimal.valueOf(quantity))
+                .negate()
+                : BigDecimal.ZERO;
+
+        Transaction transaction = Transaction.builder()
+                .transactionType(TransactionType.CUSTOMER_RETURN)
+                .status(TransactionStatus.COMPLETED)
+                .product(product)
+                .totalProducts(quantity)
+                .totalPrice(totalReturnPrice.negate())
+                .purchasePrice(sellPrice)
+                .purchaseType("CUSTOMER_RETURN")
+                .profit(profitToDeduct)
+                .description(transactionRequest.getDescription() != null ? transactionRequest.getDescription() : "Nhận trả hàng từ khách hàng")
+                .note(transactionRequest.getNote())
+                .user(currentUser)
                 .build();
 
+        transactionRepository.save(transaction);
+
+        return Response.builder()
+                .status(200)
+                .message("Nhận trả hàng từ khách thành công")
+                .build();
     }
 
     @Override
     public Response sell(TransactionRequest transactionRequest) {
-
         Long productId = transactionRequest.getProductId();
         Integer quantity = transactionRequest.getQuantity();
 
         Product product = productRepository.findById(productId)
                 .orElseThrow(() -> new NotFoundException("Product Not Found"));
 
-        User user = userService.getCurrentLoggedInUser();
+        if (product.getStockQuantity() < quantity) {
+            throw new NameValueRequiredException("Not Enough Stock For This Product");
+        }
 
-        //update the stock quantity and re-save
-        product.setStockQuantity(product.getStockQuantity() - quantity);
-        productRepository.save(product);
+        User currentUser = userService.getCurrentLoggedInUser();
+        BigDecimal totalPrice = product.getPrice().multiply(BigDecimal.valueOf(quantity));
 
+        // Lấy giá vốn từ lần nhập kho gần nhất — bắt buộc phải có, không tự đoán
+        BigDecimal actualPurchasePrice = transactionRepository
+                .findTopByProductIdAndTransactionTypeOrderByIdDesc(productId, TransactionType.PURCHASE)
+                .map(Transaction::getPurchasePrice)
+                .orElseThrow(() -> new NameValueRequiredException(
+                        "Sản phẩm chưa có lịch sử nhập kho. Vui lòng nhập kho trước khi bán."));
 
-        //create a transaction
+        // Tính lợi nhuận = (Giá bán - Giá vốn nhập) × Số lượng
+        BigDecimal profitPerUnit = product.getPrice().subtract(actualPurchasePrice);
+        BigDecimal totalProfit = profitPerUnit.multiply(BigDecimal.valueOf(quantity));
+
         Transaction transaction = Transaction.builder()
                 .transactionType(TransactionType.SALE)
                 .status(TransactionStatus.COMPLETED)
                 .product(product)
-                .user(user)
                 .totalProducts(quantity)
-                .totalPrice(product.getPrice().multiply(BigDecimal.valueOf(quantity)))
+                .totalPrice(totalPrice)
+                .purchasePrice(actualPurchasePrice)
+                .profit(totalProfit)
                 .description(transactionRequest.getDescription())
                 .note(transactionRequest.getNote())
+                .user(currentUser)
                 .build();
 
         transactionRepository.save(transaction);
-        return Response.builder()
-                .status(200)
-                .message("Product Sale successfully made")
-                .build();
 
-
-    }
-
-    @Override
-    public Response returnToSupplier(TransactionRequest transactionRequest) {
-
-        Long productId = transactionRequest.getProductId();
-        Long supplierId = transactionRequest.getSupplierId();
-        Integer quantity = transactionRequest.getQuantity();
-
-        if (supplierId == null) throw new NameValueRequiredException("Supplier Id is Required");
-
-        Product product = productRepository.findById(productId)
-                .orElseThrow(() -> new NotFoundException("Product Not Found"));
-
-        Supplier supplier = supplierRepository.findById(supplierId)
-                .orElseThrow(() -> new NotFoundException("Supplier Not Found"));
-
-        User user = userService.getCurrentLoggedInUser();
-
-        //update the stock quantity and re-save
         product.setStockQuantity(product.getStockQuantity() - quantity);
         productRepository.save(product);
 
+        List<String> serialNumbers = transactionRequest.getSerialNumbers();
+        if (serialNumbers != null && !serialNumbers.isEmpty()) {
+            for (String serial : serialNumbers) {
+                ProductItem item = productItemRepository.findBySerialNumber(serial)
+                        .orElseThrow(() -> new NotFoundException("Serial Number " + serial + " Not Found"));
+                item.setStatus("SOLD");
+                productItemRepository.save(item);
+            }
+        }
 
-        //create a transaction
+        return Response.builder()
+                .status(200)
+                .message("Sale Successful")
+                .build();
+    }
+    @Override
+    public Response returnToSupplier(TransactionRequest transactionRequest) {
+        Long productId = transactionRequest.getProductId();
+        Long supplierId = transactionRequest.getSupplierId();
+        // ✅ CHUẨN BIẾN GỐC: Sử dụng đúng getQuantity() từ TransactionRequest của bạn
+        Integer quantity = transactionRequest.getQuantity();
+
+        Product product = productRepository.findById(productId)
+                .orElseThrow(() -> new NotFoundException("Product Not Found"));
+        Supplier supplier = supplierRepository.findById(supplierId)
+                .orElseThrow(() -> new NotFoundException("Supplier Not Found"));
+
+        if (product.getStockQuantity() < quantity) {
+            throw new NameValueRequiredException("Not Enough Stock In Inventory To Return");
+        }
+
+        User currentUser = userService.getCurrentLoggedInUser();
+        BigDecimal purchasePrice = transactionRepository
+                .findTopByProductIdAndTransactionTypeOrderByIdDesc(productId, TransactionType.PURCHASE)
+                .map(Transaction::getPurchasePrice)
+                .orElseThrow(() -> new NameValueRequiredException(
+                        "Sản phẩm chưa có lịch sử nhập kho. Không thể xác định giá vốn để trả hàng."));
+        BigDecimal totalPrice = purchasePrice.multiply(BigDecimal.valueOf(quantity));
+
         Transaction transaction = Transaction.builder()
                 .transactionType(TransactionType.RETURN_TO_SUPPLIER)
-                .status(TransactionStatus.PROCESSING)
+                .status(TransactionStatus.COMPLETED)
                 .product(product)
-                .user(user)
+                .supplier(supplier)
                 .totalProducts(quantity)
-                .totalPrice(BigDecimal.ZERO)
+                .totalPrice(totalPrice)
+                .purchasePrice(purchasePrice)
+                .profit(BigDecimal.ZERO)
                 .description(transactionRequest.getDescription())
                 .note(transactionRequest.getNote())
+                .user(currentUser)
                 .build();
 
         transactionRepository.save(transaction);
 
+        product.setStockQuantity(product.getStockQuantity() - quantity);
+        productRepository.save(product);
+
+        List<String> serialNumbers = transactionRequest.getSerialNumbers();
+        if (serialNumbers != null && !serialNumbers.isEmpty()) {
+            for (String serial : serialNumbers) {
+                ProductItem item = productItemRepository.findBySerialNumber(serial)
+                        .orElseThrow(() -> new NotFoundException("Serial Number " + serial + " Not Found"));
+                item.setStatus("RETURNED_TO_SUPPLIER");
+                productItemRepository.save(item);
+            }
+        }
+
         return Response.builder()
                 .status(200)
-                .message("Product Returned in progress")
+                .message("Return To Supplier Processed Successfully")
                 .build();
-
     }
 
     @Override
     public Response getAllTransactions(int page, int size, String filter) {
-
         Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "id"));
-
-        //user the Transaction specification
         Specification<Transaction> spec = TransactionFilter.byFilter(filter);
         Page<Transaction> transactionPage = transactionRepository.findAll(spec, pageable);
 
@@ -183,6 +310,7 @@ public class TransactionServiceImpl implements TransactionService {
             transactionDTO.setSupplier(null);
         });
 
+        // 🌟 TÍNH NĂNG MỚI: Bổ sung totalElements và totalPages để kích hoạt thanh phân trang ở Frontend
         return Response.builder()
                 .status(200)
                 .message("success")
@@ -190,37 +318,50 @@ public class TransactionServiceImpl implements TransactionService {
                 .totalElements(transactionPage.getTotalElements())
                 .totalPages(transactionPage.getTotalPages())
                 .build();
-
     }
 
     @Override
     public Response getAllTransactionById(Long id) {
-
         Transaction transaction = transactionRepository.findById(id)
                 .orElseThrow(() -> new NotFoundException("Transaction Not Found"));
 
-        TransactionDTO transactionDTO = modelMapper.map(transaction, TransactionDTO.class);
+        // 1. Ánh xạ sang DTO bình thường
+        TransactionDTO dto = modelMapper.map(transaction, TransactionDTO.class);
 
-        transactionDTO.getUser().setTransactions(null);
+        // 2. 🌟 BẺ GÃY VÒNG LẶP TUẦN HOÀN (Ngăn chặn lỗi JsonMappingException)
+        if (dto.getProduct() != null) {
+            dto.getProduct().setCategory(null); // Bẻ liên kết Category sâu
+            dto.getProduct().setProductItems(null); // Xóa mảng serial con để nhẹ JSON
+        }
+        if (dto.getUser() != null) {
+            // Bạn có thể giữ lại các trường cơ bản của user và set null các danh sách liên kết nếu có
+        }
+        if (dto.getSupplier() != null) {
+            // Giữ lại supplier để hiển thị thông tin đối tác
+        }
 
+        // 3. Trả về Response sạch
         return Response.builder()
                 .status(200)
                 .message("success")
-                .transaction(transactionDTO)
+                .transaction(dto)
                 .build();
     }
 
     @Override
     public Response getAllTransactionByMonthAndYear(int month, int year) {
-        List<Transaction> transactions = transactionRepository.findAll(TransactionFilter.byMonthAndYear(month, year));
+        Specification<Transaction> spec = TransactionFilter.byMonthAndYear(month, year);
+        List<Transaction> transactions = transactionRepository.findAll(spec);
 
         List<TransactionDTO> transactionDTOS = modelMapper.map(transactions, new TypeToken<List<TransactionDTO>>() {
         }.getType());
 
-        transactionDTOS.forEach(transactionDTO -> {
-            transactionDTO.setUser(null);
-            transactionDTO.setProduct(null);
-            transactionDTO.setSupplier(null);
+        // 🌟 TÍNH NĂNG MỚI: Giữ lại Object Product để Frontend lấy dữ liệu tính doanh thu/lợi nhuận,
+        // bẻ gãy liên kết sâu Category để tránh sập lỗi lặp cấu trúc tuần hoàn JSON.
+        transactionDTOS.forEach(dto -> {
+            if (dto.getProduct() != null) {
+                dto.getProduct().setCategory(null);
+            }
         });
 
         return Response.builder()
@@ -231,23 +372,81 @@ public class TransactionServiceImpl implements TransactionService {
     }
 
     @Override
-    public Response updateTransactionStatus(Long transactionId, TransactionStatus status) {
-
-        Transaction existingTransaction = transactionRepository.findById(transactionId)
+    public Response updateTransactionStatus(Long id, TransactionStatus status) {
+        Transaction transaction = transactionRepository.findById(id)
                 .orElseThrow(() -> new NotFoundException("Transaction Not Found"));
+        transaction.setStatus(status);
+        transactionRepository.save(transaction);
+        return Response.builder().status(200).message("Status Updated").build();
+    }
 
-        existingTransaction.setStatus(status);
-        existingTransaction.setUpdateAt(LocalDateTime.now());
+    @Override
+    public Response checkWarrantyBySerial(String serialNumber) {
+        // 1. Tìm sản phẩm trong kho
+        ProductItem productItem = productItemRepository.findBySerialNumber(serialNumber)
+                .orElseThrow(() -> new NotFoundException("Mã số Serial/IMEI này không tồn tại."));
 
-        transactionRepository.save(existingTransaction);
+        // 2. Map sang DTO chuẩn
+        ProductItemDTO productItemDTO = modelMapper.map(productItem, ProductItemDTO.class);
+
+        // 3. Xử lý thông tin ngày tháng bảo hành (Tìm giao dịch SALE gần nhất nếu đã bán)
+        String warrantyInfo = "Chưa xuất kho|0"; // Format: NgayBan|SoThangBH
+        // Mặc định ban đầu nếu chưa bán
+        productItemDTO.setSoldDate(null);
+        productItemDTO.setWarrantyMonths(productItem.getProduct().getWarrantyMonths() != null ? productItem.getProduct().getWarrantyMonths() : 0);
+
+        // Nếu sản phẩm đã bán, tìm giao dịch SALE gần nhất để lấy ngày giao dịch thực tế
+        if ("SOLD".equals(productItem.getStatus())) {
+            transactionRepository.findTopByProductIdAndTransactionTypeOrderByIdDesc(
+                    productItem.getProduct().getId(),
+                    TransactionType.SALE
+            ).ifPresent(lastSale -> {
+                // Lấy ngày tạo (createdAt) của giao dịch bán này gán làm ngày xuất kho bảo hành
+                productItemDTO.setSoldDate(lastSale.getCreatedAt());
+            });
+        }
 
         return Response.builder()
                 .status(200)
-                .message("Transaction Status Successfully Updated")
+                .message("success")
+                .productItem(productItemDTO) // Dùng đúng đối tượng DTO đã khai báo trong Response.java
                 .build();
-
-
     }
 
+    @Override
+    public Response updateStatus(Long id, TransactionStatus status) {
+        return null;
+    }
 
+    @Override
+    public List<String> extractSerialsFromExcel(MultipartFile file) {
+        List<String> extractedSerials = new ArrayList<>();
+        try (InputStream inputStream = file.getInputStream();
+             org.apache.poi.ss.usermodel.Workbook workbook = new org.apache.poi.xssf.usermodel.XSSFWorkbook(inputStream)) {
+
+            org.apache.poi.ss.usermodel.Sheet sheet = workbook.getSheetAt(0);
+
+            for (org.apache.poi.ss.usermodel.Row row : sheet) {
+                if (row.getRowNum() == 0) continue;
+
+                org.apache.poi.ss.usermodel.Cell cell = row.getCell(0);
+                if (cell != null) {
+                    String serial = "";
+                    if (cell.getCellType() == org.apache.poi.ss.usermodel.CellType.STRING) {
+                        serial = cell.getStringCellValue().trim();
+                    } else if (cell.getCellType() == org.apache.poi.ss.usermodel.CellType.NUMERIC) {
+                        serial = String.valueOf((long) cell.getNumericCellValue()).trim();
+                    }
+
+                    if (!serial.isEmpty()) {
+                        extractedSerials.add(serial);
+                    }
+                }
+            }
+        } catch (Exception e) {
+            log.error("Lỗi khi đọc file Excel: ", e);
+            throw new NameValueRequiredException("Không thể đọc file Excel. Vui lòng đảm bảo file đúng định dạng .xlsx");
+        }
+        return extractedSerials;
+    }
 }

@@ -166,10 +166,14 @@ public class UserServiceImpl implements UserService {
 
         UserDTO userDTO = modelMapper.map(user, UserDTO.class);
 
-        userDTO.getTransactions().forEach(transactionDTO -> {
-            transactionDTO.setUser(null);
-            transactionDTO.setSupplier(null);
-        });
+        // --- BẮT ĐẦU PHẦN THÊM VÀO: Kiểm tra null trước khi duyệt mảng để tránh lỗi NullPointerException ---
+        if (userDTO.getTransactions() != null && !userDTO.getTransactions().isEmpty()) {
+            userDTO.getTransactions().forEach(transactionDTO -> {
+                transactionDTO.setUser(null);
+                transactionDTO.setSupplier(null);
+            });
+        }
+        // ------
 
         return Response.builder()
                 .status(200)

@@ -30,8 +30,9 @@ public class UserDTO {
 
     private UserRole role;
 
+    // 🌟 CHẶN ĐỨNG VÒNG LẶP TUẦN HOÀN TẠI ĐÂY
+    @JsonIgnore
     private List<TransactionDTO> transactions;
 
     private LocalDateTime createdAt;
-
 }

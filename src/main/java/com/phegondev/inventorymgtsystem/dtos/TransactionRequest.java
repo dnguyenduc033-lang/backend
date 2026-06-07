@@ -7,6 +7,9 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.math.BigDecimal;
+import java.util.List;
+
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
@@ -18,6 +21,8 @@ public class TransactionRequest {
 
     @Positive(message = "quantity id is required")
     private Integer quantity;
+    private BigDecimal purchasePrice;
+    private String purchaseType;
 
     private Long supplierId;
 
@@ -25,5 +30,5 @@ public class TransactionRequest {
 
     private String note;
 
-
+    private List<String> serialNumbers;
 }

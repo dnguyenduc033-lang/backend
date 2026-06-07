@@ -19,53 +19,22 @@ public class ProductController {
     private final ProductService productService;
 
     @PostMapping("/add")
-    @PreAuthorize("hasAuthority('ADMIN')")
+    @PreAuthorize("hasAnyAuthority('ADMIN', 'MANAGER')")
     public ResponseEntity<Response> saveProduct(
-            @RequestParam("imageFile") MultipartFile imageFile,
-            @RequestParam("name") String name,
-            @RequestParam("sku") String sku,
-            @RequestParam("price") BigDecimal price,
-            @RequestParam("stockQuantity") Integer stockQuantity,
-            @RequestParam("categoryId") Long categoryId,
-            @RequestParam(value = "description", required = false) String description
+            @RequestPart("product") ProductDTO productDTO,
+            @RequestPart(value = "imageFile", required = false) MultipartFile imageFile
     ) {
-        ProductDTO productDTO = new ProductDTO();
-        productDTO.setName(name);
-        productDTO.setSku(sku);
-        productDTO.setPrice(price);
-        productDTO.setStockQuantity(stockQuantity);
-        productDTO.setCategoryId(categoryId);
-        productDTO.setDescription(description);
-
         return ResponseEntity.ok(productService.saveProduct(productDTO, imageFile));
-
     }
 
     @PutMapping("/update")
-    @PreAuthorize("hasAuthority('ADMIN')")
+    @PreAuthorize("hasAnyAuthority('ADMIN', 'MANAGER')")
     public ResponseEntity<Response> updateProduct(
-            @RequestParam(value = "imageFile", required = false) MultipartFile imageFile,
-            @RequestParam(value = "name", required = false) String name,
-            @RequestParam(value = "sku", required = false) String sku,
-            @RequestParam(value = "price", required = false) BigDecimal price,
-            @RequestParam(value = "stockQuantity", required = false) Integer stockQuantity,
-            @RequestParam(value = "categoryId", required = false) Long categoryId,
-            @RequestParam(value = "description", required = false) String description,
-            @RequestParam("productId") Long productId
+            @RequestPart("product") ProductDTO productDTO,
+            @RequestPart(value = "imageFile", required = false) MultipartFile imageFile
     ) {
-        ProductDTO productDTO = new ProductDTO();
-        productDTO.setName(name);
-        productDTO.setSku(sku);
-        productDTO.setPrice(price);
-        productDTO.setProductId(productId);
-        productDTO.setStockQuantity(stockQuantity);
-        productDTO.setCategoryId(categoryId);
-        productDTO.setDescription(description);
-
         return ResponseEntity.ok(productService.updateProduct(productDTO, imageFile));
-
     }
-
 
     @GetMapping("/all")
     public ResponseEntity<Response> getAllProducts() {
@@ -77,9 +46,8 @@ public class ProductController {
         return ResponseEntity.ok(productService.getProductById(id));
     }
 
-
     @DeleteMapping("/delete/{id}")
-    @PreAuthorize("hasAuthority('ADMIN')")
+    @PreAuthorize("hasAnyAuthority('ADMIN', 'MANAGER')")
     public ResponseEntity<Response> deleteProduct(@PathVariable Long id) {
         return ResponseEntity.ok(productService.deleteProduct(id));
     }
@@ -89,5 +57,25 @@ public class ProductController {
         return ResponseEntity.ok(productService.searchProduct(input));
     }
 
+    // --- BỔ SUNG MỚI: QUẢN LÝ THÔNG SỐ KỸ THUẬT ---
+    @PostMapping("/{productId}/specs")
+    @PreAuthorize("hasAnyAuthority('ADMIN', 'MANAGER')")
+    public ResponseEntity<Response> addProductSpec(@PathVariable Long productId,
+                                                   @RequestParam String key,
+                                                   @RequestParam String value) {
+        return ResponseEntity.ok(productService.addSpecification(productId, key, value));
+    }
 
+    // --- BỔ SUNG MỚI: TRA CỨU SERIAL/IMEI ---
+    @GetMapping("/items/serial/{serialNumber}")
+    public ResponseEntity<Response> getProductItemBySerial(@PathVariable String serialNumber) {
+        return ResponseEntity.ok(productService.getProductItemBySerial(serialNumber));
+    }
+
+    // --- BỔ SUNG MỚI: DANH SÁCH HÀNG SẮP HẾT ---
+    @GetMapping("/low-stock")
+    @PreAuthorize("hasAnyAuthority('ADMIN', 'MANAGER')")
+    public ResponseEntity<Response> getLowStockProducts() {
+        return ResponseEntity.ok(productService.getLowStockProducts());
+    }
 }

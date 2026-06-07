@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import com.phegondev.inventorymgtsystem.enums.UserRole;
 import lombok.Builder;
 import lombok.Data;
+import com.phegondev.inventorymgtsystem.models.News;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -38,10 +39,19 @@ public class Response {
     private ProductDTO product;
     private List<ProductDTO> products;
 
+    // === BỔ SUNG 2 DÒNG NÀY ĐỂ HẾT LỖI BIÊN DỊCH ===
+    private ProductItemDTO productItem;
+    private List<ProductItemDTO> productItems;
+
     private TransactionDTO transaction;
     private List<TransactionDTO> transactions;
 
+    private PurchaseRequestDTO purchaseRequest;
+    private List<PurchaseRequestDTO> purchaseRequests;
+    private NotificationDTO notification;
+    private List<NotificationDTO> notifications;
+
     private final LocalDateTime timestamp = LocalDateTime.now();
 
-
+    private List<News> newsList; // <--- THÊM DÒNG NÀY VÀO
 }

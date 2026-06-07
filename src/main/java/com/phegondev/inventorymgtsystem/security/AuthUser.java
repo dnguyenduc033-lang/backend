@@ -30,6 +30,16 @@ public class AuthUser implements UserDetails {
         return user.getEmail();
     }
 
+    // --- BỔ SUNG: Getter để lấy nhanh đối tượng User hoặc ID khi cần trong Service ---
+    public User getUser() {
+        return user;
+    }
+
+    public Long getId() {
+        return user.getId();
+    }
+    // ---------------------------------------------------------------------------
+
     @Override
     public boolean isAccountNonExpired() {
         return true;

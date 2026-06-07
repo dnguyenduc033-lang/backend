@@ -27,17 +27,39 @@ public class Transaction {
 
     private BigDecimal totalPrice;
 
-    @Enumerated(EnumType.STRING)
-    private TransactionType transactionType; // pruchase, sale, return
+    @Column(name = "purchase_price", precision = 15, scale = 2)
+    private BigDecimal purchasePrice;
+
+    @Column(name = "purchase_type")
+    private String purchaseType;
 
     @Enumerated(EnumType.STRING)
-    private TransactionStatus status; //pending, completed, processing
+    private TransactionType transactionType;
+
+    @Enumerated(EnumType.STRING)
+    private TransactionStatus status;
 
     private String description;
     private String note;
 
-    private final LocalDateTime createdAt = LocalDateTime.now();
+    @Column(name = "profit", precision = 15, scale = 2)
+    private BigDecimal profit;
+
+    @Column(name = "warranty_expiry_date")
+    private LocalDateTime warrantyExpiryDate;
+
+    @Column(name = "created_at")
+    private LocalDateTime createdAt;
+
     private LocalDateTime updateAt;
+
+    // Tự động kích hoạt ghi nhận thời gian khi có dữ liệu mới phát sinh
+    @PrePersist
+    protected void onCreate() {
+        if (this.createdAt == null) {
+           this.createdAt = LocalDateTime.now();
+        }
+    }
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "product_id")
@@ -57,6 +79,8 @@ public class Transaction {
                 "id=" + id +
                 ", totalProducts=" + totalProducts +
                 ", totalPrice=" + totalPrice +
+
+                ", profit=" + profit +
                 ", transactionType=" + transactionType +
                 ", status=" + status +
                 ", description='" + description + '\'' +

@@ -77,6 +77,11 @@ public class CategoryServiceImpl implements CategoryService {
 
         existingCategory.setName(categoryDTO.getName());
 
+        // --- BỔ SUNG: Cập nhật cấu hình thông số nếu có thay đổi ---
+        if (categoryDTO.getRequiredSpecs() != null) {
+            existingCategory.setRequiredSpecs(categoryDTO.getRequiredSpecs());
+        }
+
         categoryRepository.save(existingCategory);
 
         return Response.builder()

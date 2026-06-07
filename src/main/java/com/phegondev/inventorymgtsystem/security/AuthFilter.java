@@ -33,25 +33,26 @@ public class AuthFilter extends OncePerRequestFilter {
 
         if (token != null) {
             String email = jwtUtils.getUsernameFromToken(token);
-            UserDetails userDetails = customUserDetailsService.loadUserByUsername(email);
 
-            if (StringUtils.hasText(email) && jwtUtils.isTokeValid(token, userDetails)) {
-                log.info("Valid Token, {}", email);
+            // CẢI TIẾN: Chỉ vào DB tìm User khi email hợp lệ và chưa được xác thực trong Context hiện tại
+            if (StringUtils.hasText(email) && SecurityContextHolder.getContext().getAuthentication() == null) {
+                UserDetails userDetails = customUserDetailsService.loadUserByUsername(email);
 
-                UsernamePasswordAuthenticationToken authenticationToken = new UsernamePasswordAuthenticationToken(
-                        userDetails, null, userDetails.getAuthorities()
-                );
-                authenticationToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
-                SecurityContextHolder.getContext().setAuthentication(authenticationToken);
+                // Kiểm tra tính hợp lệ của Token dựa trên thông tin User vừa lấy
+                if (jwtUtils.isTokenValid(token, userDetails)) {
+                    log.info("Valid Token, {}", email);
+
+                    UsernamePasswordAuthenticationToken authenticationToken = new UsernamePasswordAuthenticationToken(
+                            userDetails, null, userDetails.getAuthorities()
+                    );
+                    authenticationToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+                    SecurityContextHolder.getContext().setAuthentication(authenticationToken);
+                }
             }
         }
 
-        try {
-            filterChain.doFilter(request, response);
-        } catch (Exception e) {
-            log.error("Exception occurred in AuthFilter: " + e.getMessage());
-        }
-
+        // CẢI TIẾN: Bỏ hoàn toàn try-catch để không nuốt lỗi hệ thống, trả luồng kiểm soát lại cho Spring
+        filterChain.doFilter(request, response);
     }
 
     private String getTokenFromRequest(HttpServletRequest request) {

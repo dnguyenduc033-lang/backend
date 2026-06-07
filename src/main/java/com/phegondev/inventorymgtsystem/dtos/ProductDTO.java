@@ -1,5 +1,6 @@
 package com.phegondev.inventorymgtsystem.dtos;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import lombok.AllArgsConstructor;
@@ -8,6 +9,7 @@ import lombok.NoArgsConstructor;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Data
 @AllArgsConstructor
@@ -31,10 +33,23 @@ public class ProductDTO {
     private Integer stockQuantity;
 
     private String description;
+
+    private String location;
+
     private LocalDateTime expiryDate;
     private String imageUrl;
 
     private LocalDateTime createdAt;
 
+    private Integer warrantyMonths;
+    private Integer minStockLevel;
 
+    // 🌟 CHẶN ĐỨNG VÒNG LẶP TUẦN HOÀN TẠI ĐÂY
+
+    private List<ProductSpecDTO> specs;
+
+
+    private List<ProductItemDTO> productItems;
+
+    private CategoryDTO category;
 }

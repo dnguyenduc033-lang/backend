@@ -38,6 +38,7 @@ public class User {
     private String phoneNumber;
 
     @Enumerated(EnumType.STRING)
+    @Column(name = "role", length = 20)
     private UserRole role;
 
     @OneToMany(mappedBy = "user")
@@ -55,7 +56,7 @@ public class User {
                 ", password='" + password + '\'' +
                 ", phoneNumber='" + phoneNumber + '\'' +
                 ", role=" + role +
-                ", transactions=" + transactions +
+
                 ", createdAt=" + createdAt +
                 '}';
     }

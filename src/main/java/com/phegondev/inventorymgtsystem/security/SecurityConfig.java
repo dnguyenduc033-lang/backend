@@ -35,17 +35,56 @@ public class SecurityConfig {
         httpSecurity.csrf(AbstractHttpConfigurer::disable)
                 .cors(Customizer.withDefaults())
                 .exceptionHandling(exception -> exception
-                        .accessDeniedHandler(customAccessDenialHandler)
                         .authenticationEntryPoint(customAuthenticationEntryPoint)
-                )
+                        .accessDeniedHandler(customAccessDenialHandler))
                 .authorizeHttpRequests(request -> request
+                        // 1. Công khai
                         .requestMatchers("/api/auth/**").permitAll()
+
+                        // Endpoint NCC xác nhận đơn hàng qua email — không cần đăng nhập
+                        .requestMatchers(org.springframework.http.HttpMethod.GET,
+                                "/api/purchase-requests/confirm").permitAll()
+
+                        .requestMatchers(org.springframework.http.HttpMethod.POST, "/api/news/**").hasAuthority("ADMIN")
+                        .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/news/**").hasAnyAuthority("ADMIN", "MANAGER", "STAFF")
+
+                        .requestMatchers("/api/users/current").hasAnyAuthority("ADMIN", "MANAGER", "STAFF")
+                        .requestMatchers("/api/users/**").hasAuthority("ADMIN")
+
+                        // 3. ADMIN & MANAGER: Thêm/sửa/xóa. STAFF: chỉ xem (GET)
+                        .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/products/**").hasAnyAuthority("ADMIN", "MANAGER", "STAFF")
+                        .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/categories/**").hasAnyAuthority("ADMIN", "MANAGER", "STAFF")
+                        .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/suppliers/**").hasAnyAuthority("ADMIN", "MANAGER", "STAFF")
+                        .requestMatchers("/api/products/**").hasAnyAuthority("ADMIN", "MANAGER")
+                        .requestMatchers("/api/categories/**").hasAnyAuthority("ADMIN", "MANAGER")
+                        .requestMatchers("/api/suppliers/**").hasAnyAuthority("ADMIN", "MANAGER")
+
+                        // Nhập kho: chỉ MANAGER
+                        .requestMatchers(org.springframework.http.HttpMethod.POST,
+                                "/api/transactions/purchase").hasAuthority("MANAGER")
+                        // Bán hàng, đổi trả: MANAGER và STAFF
+                        .requestMatchers(org.springframework.http.HttpMethod.POST,
+                                "/api/transactions/sell",
+                                "/api/transactions/return",
+                                "/api/transactions/return-from-customer",
+                                "/api/transactions/extract-serials").hasAnyAuthority("MANAGER", "STAFF")
+                        // Kiểm tra bảo hành: MANAGER và STAFF
+                        .requestMatchers(org.springframework.http.HttpMethod.GET,
+                                "/api/transactions/warranty-check/**").hasAnyAuthority("MANAGER", "STAFF")
+
+                        .requestMatchers("/api/transactions/**").hasAnyAuthority("ADMIN", "MANAGER")
+
+                        // Purchase Requests: luồng phê duyệt nhập kho
+                        .requestMatchers("/api/purchase-requests/**").hasAnyAuthority("ADMIN", "MANAGER")
+
+                        .requestMatchers("/api/notifications/**").hasAuthority("MANAGER")
+
+                        // 4. Các yêu cầu còn lại: Phải đăng nhập
                         .anyRequest().authenticated()
                 )
                 .sessionManagement(manager -> manager.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .addFilterBefore(authFilter, UsernamePasswordAuthenticationFilter.class);
         return httpSecurity.build();
-
     }
 
     @Bean

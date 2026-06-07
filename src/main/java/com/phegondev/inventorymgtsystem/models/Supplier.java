@@ -25,4 +25,6 @@ public class Supplier {
     private String contactInfo;
 
     private String address;
+
+    private String email;
 }

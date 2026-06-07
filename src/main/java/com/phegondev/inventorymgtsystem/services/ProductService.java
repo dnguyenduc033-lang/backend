@@ -16,4 +16,9 @@ public interface ProductService {
     Response deleteProduct(Long id);
 
     Response searchProduct(String input);
+
+    // --- BỔ SUNG ĐỂ HẾT LỖI ĐỎ Ở CONTROLLER ---
+    Response addSpecification(Long productId, String key, String value);
+    Response getProductItemBySerial(String serialNumber);
+    Response getLowStockProducts();
 }

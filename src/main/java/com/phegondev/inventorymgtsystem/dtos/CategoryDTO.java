@@ -21,6 +21,9 @@ public class CategoryDTO {
     @NotBlank(message = "Name is required")
     private String name;
 
+    private String requiredSpecs;
+
+    @com.fasterxml.jackson.annotation.JsonIgnore
     private List<ProductDTO> products;
 
 
