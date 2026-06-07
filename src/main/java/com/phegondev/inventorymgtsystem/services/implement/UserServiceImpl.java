@@ -57,6 +57,15 @@ public class UserServiceImpl implements UserService {
                 .role(role)
                 .build();
 
+        if (registerRequest.getManagerId() != null) {
+            User manager = userRepository.findById(registerRequest.getManagerId())
+                    .orElseThrow(() -> new NotFoundException("Manager Not Found"));
+            validateManagerForRole(role, manager);
+            userToSave.setManager(manager);
+        } else if (role != UserRole.ADMIN) {
+            throw new BadRequestException("Manager is required for this role");
+        }
+
         userRepository.save(userToSave);
 
         return Response.builder()
@@ -274,6 +283,15 @@ public class UserServiceImpl implements UserService {
                                 .map(child -> toTreeNode(child, childrenByManagerId))
                                 .toList())
                 .build();
+    }
+
+    private void validateManagerForRole(UserRole role, User manager) {
+        if (role == UserRole.MANAGER && manager.getRole() != UserRole.ADMIN) {
+            throw new BadRequestException("Manager role must report to an ADMIN");
+        }
+        if (role == UserRole.STAFF && manager.getRole() == UserRole.STAFF) {
+            throw new BadRequestException("Staff must report to a MANAGER or ADMIN");
+        }
     }
 
     private void assignManager(User existingUser, Long userId, Long managerId) {

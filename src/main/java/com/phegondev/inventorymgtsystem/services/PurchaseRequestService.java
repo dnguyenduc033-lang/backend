@@ -10,6 +10,7 @@ public interface PurchaseRequestService {
     Response getAllRequests();
     Response getMyRequests();
     Response approveRequest(Long id);
+    Response bulkApproveRequests(List<Long> ids);
     Response rejectRequest(Long id, String reason);
     Response completeRequest(Long id, List<String> serialNumbers);
 

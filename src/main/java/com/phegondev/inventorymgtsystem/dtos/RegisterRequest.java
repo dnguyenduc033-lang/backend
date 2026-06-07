@@ -25,4 +25,6 @@ public class RegisterRequest {
 
     private UserRole role;
 
+    private Long managerId;
+
 }

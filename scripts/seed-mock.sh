@@ -17,16 +17,22 @@ MYSQL_DATABASE="${MYSQL_DATABASE:-inventory_db}"
 
 cd "$BACKEND_ROOT"
 
-if ! docker compose ps --status running mysql | grep -q inventory-mysql; then
-  echo "MySQL container is not running. Start it with: docker compose up -d mysql"
+if docker ps --format '{{.Names}}' | grep -q '^inventory-mysql$'; then
+  docker exec -i inventory-mysql \
+    mysql \
+    -uroot \
+    -p"${MYSQL_ROOT_PASSWORD}" \
+    "${MYSQL_DATABASE}" < "${SEED_FILE}"
+elif docker compose ps --status running mysql 2>/dev/null | grep -q inventory-mysql; then
+  docker compose exec -T mysql \
+    mysql \
+    -uroot \
+    -p"${MYSQL_ROOT_PASSWORD}" \
+    "${MYSQL_DATABASE}" < "${SEED_FILE}"
+else
+  echo "MySQL container is not running. Start it first."
   exit 1
 fi
-
-docker compose exec -T mysql \
-  mysql \
-  -uroot \
-  -p"${MYSQL_ROOT_PASSWORD}" \
-  "${MYSQL_DATABASE}" < "${SEED_FILE}"
 
 echo "Mock data loaded into ${MYSQL_DATABASE}"
 echo
