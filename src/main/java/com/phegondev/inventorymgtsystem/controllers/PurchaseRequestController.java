@@ -43,6 +43,13 @@ public class PurchaseRequestController {
         return ResponseEntity.ok(purchaseRequestService.approveRequest(id));
     }
 
+    @PutMapping("/bulk-approve")
+    @PreAuthorize("hasAuthority('ADMIN')")
+    public ResponseEntity<Response> bulkApproveRequests(@RequestBody Map<String, List<Long>> body) {
+        List<Long> ids = body.getOrDefault("ids", List.of());
+        return ResponseEntity.ok(purchaseRequestService.bulkApproveRequests(ids));
+    }
+
     @PutMapping("/{id}/reject")
     @PreAuthorize("hasAuthority('ADMIN')")
     public ResponseEntity<Response> rejectRequest(

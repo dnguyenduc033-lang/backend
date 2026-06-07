@@ -1,5 +1,6 @@
 package com.phegondev.inventorymgtsystem.models;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.phegondev.inventorymgtsystem.enums.UserRole;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
@@ -30,6 +31,7 @@ public class User {
     @NotBlank(message = "Email is required")
     private String email;
 
+    @JsonIgnore
     @NotBlank(message = "Password is required")
     private String password;
 
@@ -40,6 +42,14 @@ public class User {
     @Enumerated(EnumType.STRING)
     @Column(name = "role", length = 20)
     private UserRole role;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "manager_id")
+    private User manager;
+
+    @JsonIgnore
+    @OneToMany(mappedBy = "manager")
+    private List<User> subordinates;
 
     @OneToMany(mappedBy = "user")
     private List<Transaction> transactions;
@@ -53,7 +63,6 @@ public class User {
                 "id=" + id +
                 ", name='" + name + '\'' +
                 ", email='" + email + '\'' +
-                ", password='" + password + '\'' +
                 ", phoneNumber='" + phoneNumber + '\'' +
                 ", role=" + role +
 

@@ -89,7 +89,62 @@ public class PurchaseRequestServiceImpl implements PurchaseRequestService {
         PurchaseRequest request = purchaseRequestRepository.findById(id)
                 .orElseThrow(() -> new NotFoundException("Không tìm thấy yêu cầu"));
 
-        // Tạo token bảo mật dùng 1 lần để nhúng vào link email NCC
+        if (request.getStatus() != TransactionStatus.AWAITING_APPROVAL) {
+            return Response.builder()
+                    .status(400)
+                    .message("Yêu cầu không ở trạng thái chờ duyệt.")
+                    .build();
+        }
+
+        approveOne(request, admin);
+
+        return Response.builder()
+                .status(200)
+                .message("Đã phê duyệt yêu cầu và gửi email cho nhà cung cấp.")
+                .build();
+    }
+
+    @Override
+    public Response bulkApproveRequests(List<Long> ids) {
+        if (ids == null || ids.isEmpty()) {
+            return Response.builder()
+                    .status(400)
+                    .message("Vui lòng chọn ít nhất một yêu cầu để duyệt.")
+                    .build();
+        }
+
+        User admin = userService.getCurrentLoggedInUser();
+        int success = 0;
+        int failed = 0;
+
+        for (Long id : ids) {
+            PurchaseRequest request = purchaseRequestRepository.findById(id).orElse(null);
+            if (request == null || request.getStatus() != TransactionStatus.AWAITING_APPROVAL) {
+                failed++;
+                continue;
+            }
+            approveOne(request, admin);
+            success++;
+        }
+
+        if (success == 0) {
+            return Response.builder()
+                    .status(400)
+                    .message("Không có yêu cầu nào được duyệt. Vui lòng kiểm tra lại trạng thái.")
+                    .build();
+        }
+
+        String message = failed > 0
+                ? String.format("Đã phê duyệt %d/%d yêu cầu. %d yêu cầu không thể duyệt.", success, ids.size(), failed)
+                : String.format("Đã phê duyệt %d yêu cầu và gửi email cho nhà cung cấp.", success);
+
+        return Response.builder()
+                .status(200)
+                .message(message)
+                .build();
+    }
+
+    private void approveOne(PurchaseRequest request, User admin) {
         String token = UUID.randomUUID().toString();
 
         request.setStatus(TransactionStatus.APPROVED);
@@ -98,10 +153,8 @@ public class PurchaseRequestServiceImpl implements PurchaseRequestService {
         request.setConfirmToken(token);
         purchaseRequestRepository.save(request);
 
-        // Gửi email HTML có 2 nút Chấp nhận / Từ chối cho NCC
         emailService.sendPurchaseRequestEmail(request);
 
-        // Gửi thông báo cho MANAGER
         notificationService.createNotification(
                 request.getCreatedBy(),
                 "✅ Yêu cầu nhập hàng được duyệt",
@@ -110,11 +163,6 @@ public class PurchaseRequestServiceImpl implements PurchaseRequestService {
                 "APPROVED",
                 "/purchase-request"
         );
-
-        return Response.builder()
-                .status(200)
-                .message("Đã phê duyệt yêu cầu và gửi email cho nhà cung cấp.")
-                .build();
     }
 
     @Override
