@@ -80,7 +80,7 @@ public class TransactionServiceImpl implements TransactionService {
                 .totalProducts(quantity)
                 .totalPrice(totalPrice)
                 .purchasePrice(purchasePrice)
-                .purchaseType("NEW_IMPORT")
+
                 .profit(BigDecimal.ZERO)
                 .description(transactionRequest.getDescription())
                 .note(transactionRequest.getNote())
@@ -99,6 +99,7 @@ public class TransactionServiceImpl implements TransactionService {
                 item.setProduct(product);
                 item.setSerialNumber(serial);
                 item.setStatus("AVAILABLE");
+                item.setTransaction(transaction);
                 productItemRepository.save(item);
             }
         }
@@ -117,19 +118,6 @@ public class TransactionServiceImpl implements TransactionService {
         Product product = productRepository.findById(productId)
                 .orElseThrow(() -> new NotFoundException("Product Not Found"));
 
-        List<String> serialNumbers = transactionRequest.getSerialNumbers();
-        if (serialNumbers != null && !serialNumbers.isEmpty()) {
-            for (String serial : serialNumbers) {
-                ProductItem item = productItemRepository.findBySerialNumber(serial)
-                        .orElseThrow(() -> new NotFoundException("Không tìm thấy mã Sê-ri " + serial));
-
-                if (!"SOLD".equals(item.getStatus())) {
-                    throw new NameValueRequiredException("Mã Sê-ri " + serial + " chưa được bán ra.");
-                }
-                item.setStatus("AVAILABLE");
-                productItemRepository.save(item);
-            }
-        }
 
         product.setStockQuantity(product.getStockQuantity() + quantity);
         productRepository.save(product);
@@ -162,7 +150,7 @@ public class TransactionServiceImpl implements TransactionService {
                 .totalProducts(quantity)
                 .totalPrice(totalReturnPrice.negate())
                 .purchasePrice(sellPrice)
-                .purchaseType("CUSTOMER_RETURN")
+
                 .profit(profitToDeduct)
                 .description(transactionRequest.getDescription() != null ? transactionRequest.getDescription() : "Nhận trả hàng từ khách hàng")
                 .note(transactionRequest.getNote())
@@ -170,6 +158,24 @@ public class TransactionServiceImpl implements TransactionService {
                 .build();
 
         transactionRepository.save(transaction);
+
+        List<String> serialNumbers = transactionRequest.getSerialNumbers();
+        if (serialNumbers != null && !serialNumbers.isEmpty()) {
+            for (String serial : serialNumbers) {
+                ProductItem item = productItemRepository.findBySerialNumber(serial)
+                        .orElseThrow(() -> new NotFoundException("Không tìm thấy mã Sê-ri " + serial));
+
+                if (!"SOLD".equals(item.getStatus())) {
+                    throw new NameValueRequiredException("Mã Sê-ri " + serial + " chưa được bán ra.");
+                }
+                item.setStatus("AVAILABLE");
+
+                // BỔ SUNG QUAN TRỌNG: Gán giao dịch vừa tạo vào ProductItem
+                item.setTransaction(transaction);
+
+                productItemRepository.save(item); // Bây giờ lưu mới có đầy đủ transaction_id
+            }
+        }
 
         return Response.builder()
                 .status(200)
@@ -227,6 +233,8 @@ public class TransactionServiceImpl implements TransactionService {
                 ProductItem item = productItemRepository.findBySerialNumber(serial)
                         .orElseThrow(() -> new NotFoundException("Serial Number " + serial + " Not Found"));
                 item.setStatus("SOLD");
+
+                item.setTransaction(transaction);
                 productItemRepository.save(item);
             }
         }
@@ -285,6 +293,7 @@ public class TransactionServiceImpl implements TransactionService {
                 ProductItem item = productItemRepository.findBySerialNumber(serial)
                         .orElseThrow(() -> new NotFoundException("Serial Number " + serial + " Not Found"));
                 item.setStatus("RETURNED_TO_SUPPLIER");
+                item.setTransaction(transaction);
                 productItemRepository.save(item);
             }
         }
@@ -325,22 +334,32 @@ public class TransactionServiceImpl implements TransactionService {
         Transaction transaction = transactionRepository.findById(id)
                 .orElseThrow(() -> new NotFoundException("Transaction Not Found"));
 
-        // 1. Ánh xạ sang DTO bình thường
+        // 1. Ánh xạ sang DTO bình thường (Lúc này ModelMapper đang tự động chèn rác)
         TransactionDTO dto = modelMapper.map(transaction, TransactionDTO.class);
 
-        // 2. 🌟 BẺ GÃY VÒNG LẶP TUẦN HOÀN (Ngăn chặn lỗi JsonMappingException)
+        // 2. 🌟 BẺ GÃY VÒNG LẶP VÀ XÓA RÁC TỪ MODELMAPPER
         if (dto.getProduct() != null) {
             dto.getProduct().setCategory(null); // Bẻ liên kết Category sâu
-            dto.getProduct().setProductItems(null); // Xóa mảng serial con để nhẹ JSON
+            dto.getProduct().setProductItems(null); // DỌN SẠCH mớ sê-ri tổng của kho
         }
         if (dto.getUser() != null) {
-            // Bạn có thể giữ lại các trường cơ bản của user và set null các danh sách liên kết nếu có
+            // Giữ lại các trường cơ bản của user
         }
         if (dto.getSupplier() != null) {
-            // Giữ lại supplier để hiển thị thông tin đối tác
+            // Giữ lại supplier để hiển thị
         }
 
-        // 3. Trả về Response sạch
+        // 3. Lấy danh sách serial thực tế liên kết với riêng giao dịch này
+        List<ProductItem> items = productItemRepository.findByTransactionId(transaction.getId());
+        if (!items.isEmpty()) {
+            List<ProductItemDTO> itemDTOs = modelMapper.map(items,
+                    new TypeToken<List<ProductItemDTO>>(){}.getType());
+            dto.setProductItems(itemDTOs); // Ghi đè sê-ri chuẩn của đơn
+        } else {
+            dto.setProductItems(new ArrayList<>()); // ÉP RỖNG nếu không có để xóa sạch rác của ModelMapper
+        }
+
+        // 4. Trả về Response sạch bóng
         return Response.builder()
                 .status(200)
                 .message("success")

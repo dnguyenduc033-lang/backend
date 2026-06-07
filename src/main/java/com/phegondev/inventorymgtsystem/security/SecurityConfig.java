@@ -40,6 +40,7 @@ public class SecurityConfig {
                 .authorizeHttpRequests(request -> request
                         // 1. Công khai
                         .requestMatchers("/api/auth/**").permitAll()
+                        .requestMatchers("/api/purchase-requests/supplier-confirm").permitAll()
 
                         // Endpoint NCC xác nhận đơn hàng qua email — không cần đăng nhập
                         .requestMatchers(org.springframework.http.HttpMethod.GET,

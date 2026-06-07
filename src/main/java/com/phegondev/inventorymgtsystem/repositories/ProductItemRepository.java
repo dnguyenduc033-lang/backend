@@ -11,4 +11,6 @@ public interface ProductItemRepository extends JpaRepository<ProductItem, Long> 
 
     // Tìm tất cả các máy đang sẵn sàng trong kho của một dòng sản phẩm
     List<ProductItem> findByProductIdAndStatus(Long productId, String status);
+
+    List<ProductItem> findByTransactionId(Long transactionId);
 }

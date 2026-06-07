@@ -30,9 +30,6 @@ public class Transaction {
     @Column(name = "purchase_price", precision = 15, scale = 2)
     private BigDecimal purchasePrice;
 
-    @Column(name = "purchase_type")
-    private String purchaseType;
-
     @Enumerated(EnumType.STRING)
     private TransactionType transactionType;
 

@@ -22,7 +22,6 @@ public class TransactionRequest {
     @Positive(message = "quantity id is required")
     private Integer quantity;
     private BigDecimal purchasePrice;
-    private String purchaseType;
 
     private Long supplierId;
 

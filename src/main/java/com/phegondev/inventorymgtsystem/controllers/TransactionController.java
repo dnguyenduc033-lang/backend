@@ -49,7 +49,7 @@ public class TransactionController {
             @RequestParam(required = false) String filter) {
 
         System.out.println("SEARCH VALUE IS: " +filter);
-        size = 1000;
+
         return ResponseEntity.ok(transactionService.getAllTransactions(page, size, filter));
     }
 

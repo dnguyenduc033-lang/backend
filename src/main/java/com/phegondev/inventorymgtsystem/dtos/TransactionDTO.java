@@ -10,6 +10,7 @@ import lombok.NoArgsConstructor;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Data
 @AllArgsConstructor
@@ -23,13 +24,14 @@ public class TransactionDTO {
     private Long userId;
     private Long productId;
     private Long supplierId;
+    private List<ProductItemDTO> productItems;
 
     private Integer totalProducts;
 
     private BigDecimal totalPrice;
 
     private BigDecimal purchasePrice;
-    private String purchaseType;
+
 
     private BigDecimal profit; // Trả về lợi nhuận
 
