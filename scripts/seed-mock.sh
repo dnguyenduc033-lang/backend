@@ -36,7 +36,7 @@ fi
 
 echo "Mock data loaded into ${MYSQL_DATABASE}"
 echo
-echo "Test accounts (password for all: password123):"
+echo "Test accounts (password for all: 123):"
 echo "  admin@inventory.com    (ADMIN)"
 echo "  manager@inventory.com  (MANAGER)"
 echo "  mai.staff@inventory.com (STAFF)"

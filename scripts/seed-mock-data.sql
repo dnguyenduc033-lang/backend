@@ -14,22 +14,22 @@ TRUNCATE TABLE suppliers;
 SET FOREIGN_KEY_CHECKS = 1;
 
 INSERT INTO users (id, name, email, password, phone_number, role, created_at, manager_id) VALUES
-(1,  'Nguyen Van Admin',      'admin@inventory.com',      '$2b$10$TDBzM6Vg3xGBdfnb/FErxOlI5oHaRdy9JgQRFZC4hJou1Cb54tUuG', '0901000001', 'ADMIN',   '2026-01-10 08:00:00.000000', NULL),
-(2,  'Tran Thi Ha',           'ha.admin@inventory.com',   '$2b$10$TDBzM6Vg3xGBdfnb/FErxOlI5oHaRdy9JgQRFZC4hJou1Cb54tUuG', '0901000002', 'ADMIN',   '2026-01-11 08:00:00.000000', NULL),
-(3,  'Le Van Manager',        'manager@inventory.com',    '$2b$10$TDBzM6Vg3xGBdfnb/FErxOlI5oHaRdy9JgQRFZC4hJou1Cb54tUuG', '0901000010', 'MANAGER', '2026-01-12 08:00:00.000000', 1),
-(4,  'Pham Thi Lan',          'lan.manager@inventory.com','$2b$10$TDBzM6Vg3xGBdfnb/FErxOlI5oHaRdy9JgQRFZC4hJou1Cb54tUuG', '0901000011', 'MANAGER', '2026-01-12 09:00:00.000000', 1),
-(5,  'Hoang Van Duc',         'duc.manager@inventory.com',  '$2b$10$TDBzM6Vg3xGBdfnb/FErxOlI5oHaRdy9JgQRFZC4hJou1Cb54tUuG', '0901000012', 'MANAGER', '2026-01-13 08:00:00.000000', 2),
-(6,  'Vo Thi Mai',            'mai.staff@inventory.com',  '$2b$10$TDBzM6Vg3xGBdfnb/FErxOlI5oHaRdy9JgQRFZC4hJou1Cb54tUuG', '0901000020', 'STAFF',   '2026-01-14 08:00:00.000000', 3),
-(7,  'Dang Van Khoa',         'khoa.staff@inventory.com', '$2b$10$TDBzM6Vg3xGBdfnb/FErxOlI5oHaRdy9JgQRFZC4hJou1Cb54tUuG', '0901000021', 'STAFF',   '2026-01-14 09:00:00.000000', 3),
-(8,  'Bui Thi Ngoc',          'ngoc.staff@inventory.com', '$2b$10$TDBzM6Vg3xGBdfnb/FErxOlI5oHaRdy9JgQRFZC4hJou1Cb54tUuG', '0901000022', 'STAFF',   '2026-01-15 08:00:00.000000', 3),
-(9,  'Do Van Hung',           'hung.staff@inventory.com', '$2b$10$TDBzM6Vg3xGBdfnb/FErxOlI5oHaRdy9JgQRFZC4hJou1Cb54tUuG', '0901000023', 'STAFF',   '2026-01-15 09:00:00.000000', 3),
-(10, 'Ngo Thi Huyen',         'huyen.staff@inventory.com','$2b$10$TDBzM6Vg3xGBdfnb/FErxOlI5oHaRdy9JgQRFZC4hJou1Cb54tUuG', '0901000030', 'STAFF',   '2026-01-16 08:00:00.000000', 4),
-(11, 'Ly Van Tuan',           'tuan.staff@inventory.com', '$2b$10$TDBzM6Vg3xGBdfnb/FErxOlI5oHaRdy9JgQRFZC4hJou1Cb54tUuG', '0901000031', 'STAFF',   '2026-01-16 09:00:00.000000', 4),
-(12, 'Truong Thi Linh',        'linh.staff@inventory.com', '$2b$10$TDBzM6Vg3xGBdfnb/FErxOlI5oHaRdy9JgQRFZC4hJou1Cb54tUuG', '0901000032', 'STAFF',   '2026-01-17 08:00:00.000000', 4),
-(13, 'Phan Van Minh',         'minh.staff@inventory.com', '$2b$10$TDBzM6Vg3xGBdfnb/FErxOlI5oHaRdy9JgQRFZC4hJou1Cb54tUuG', '0901000040', 'STAFF',   '2026-01-17 09:00:00.000000', 5),
-(14, 'Huynh Thi Thao',        'thao.staff@inventory.com', '$2b$10$TDBzM6Vg3xGBdfnb/FErxOlI5oHaRdy9JgQRFZC4hJou1Cb54tUuG', '0901000041', 'STAFF',   '2026-01-18 08:00:00.000000', 5),
-(15, 'Mai Van Quan',          'quan.staff@inventory.com', '$2b$10$TDBzM6Vg3xGBdfnb/FErxOlI5oHaRdy9JgQRFZC4hJou1Cb54tUuG', '0901000042', 'STAFF',   '2026-01-18 09:00:00.000000', 5),
-(16, 'Vu Thi Trang',          'trang.staff@inventory.com','$2b$10$TDBzM6Vg3xGBdfnb/FErxOlI5oHaRdy9JgQRFZC4hJou1Cb54tUuG', '0901000043', 'STAFF',   '2026-01-19 08:00:00.000000', 5);
+(1,  'Nguyen Van Admin',      'admin@inventory.com',      '$2b$10$iwd.pYmqGnIBQms1UiIx5ujfpV1uGNa8Aw5H.rpi52H1hKZYpqSga', '0901000001', 'ADMIN',   '2026-01-10 08:00:00.000000', NULL),
+(2,  'Tran Thi Ha',           'ha.admin@inventory.com',   '$2b$10$iwd.pYmqGnIBQms1UiIx5ujfpV1uGNa8Aw5H.rpi52H1hKZYpqSga', '0901000002', 'ADMIN',   '2026-01-11 08:00:00.000000', NULL),
+(3,  'Le Van Manager',        'manager@inventory.com',    '$2b$10$iwd.pYmqGnIBQms1UiIx5ujfpV1uGNa8Aw5H.rpi52H1hKZYpqSga', '0901000010', 'MANAGER', '2026-01-12 08:00:00.000000', 1),
+(4,  'Pham Thi Lan',          'lan.manager@inventory.com','$2b$10$iwd.pYmqGnIBQms1UiIx5ujfpV1uGNa8Aw5H.rpi52H1hKZYpqSga', '0901000011', 'MANAGER', '2026-01-12 09:00:00.000000', 1),
+(5,  'Hoang Van Duc',         'duc.manager@inventory.com',  '$2b$10$iwd.pYmqGnIBQms1UiIx5ujfpV1uGNa8Aw5H.rpi52H1hKZYpqSga', '0901000012', 'MANAGER', '2026-01-13 08:00:00.000000', 2),
+(6,  'Vo Thi Mai',            'mai.staff@inventory.com',  '$2b$10$iwd.pYmqGnIBQms1UiIx5ujfpV1uGNa8Aw5H.rpi52H1hKZYpqSga', '0901000020', 'STAFF',   '2026-01-14 08:00:00.000000', 3),
+(7,  'Dang Van Khoa',         'khoa.staff@inventory.com', '$2b$10$iwd.pYmqGnIBQms1UiIx5ujfpV1uGNa8Aw5H.rpi52H1hKZYpqSga', '0901000021', 'STAFF',   '2026-01-14 09:00:00.000000', 3),
+(8,  'Bui Thi Ngoc',          'ngoc.staff@inventory.com', '$2b$10$iwd.pYmqGnIBQms1UiIx5ujfpV1uGNa8Aw5H.rpi52H1hKZYpqSga', '0901000022', 'STAFF',   '2026-01-15 08:00:00.000000', 3),
+(9,  'Do Van Hung',           'hung.staff@inventory.com', '$2b$10$iwd.pYmqGnIBQms1UiIx5ujfpV1uGNa8Aw5H.rpi52H1hKZYpqSga', '0901000023', 'STAFF',   '2026-01-15 09:00:00.000000', 3),
+(10, 'Ngo Thi Huyen',         'huyen.staff@inventory.com','$2b$10$iwd.pYmqGnIBQms1UiIx5ujfpV1uGNa8Aw5H.rpi52H1hKZYpqSga', '0901000030', 'STAFF',   '2026-01-16 08:00:00.000000', 4),
+(11, 'Ly Van Tuan',           'tuan.staff@inventory.com', '$2b$10$iwd.pYmqGnIBQms1UiIx5ujfpV1uGNa8Aw5H.rpi52H1hKZYpqSga', '0901000031', 'STAFF',   '2026-01-16 09:00:00.000000', 4),
+(12, 'Truong Thi Linh',        'linh.staff@inventory.com', '$2b$10$iwd.pYmqGnIBQms1UiIx5ujfpV1uGNa8Aw5H.rpi52H1hKZYpqSga', '0901000032', 'STAFF',   '2026-01-17 08:00:00.000000', 4),
+(13, 'Phan Van Minh',         'minh.staff@inventory.com', '$2b$10$iwd.pYmqGnIBQms1UiIx5ujfpV1uGNa8Aw5H.rpi52H1hKZYpqSga', '0901000040', 'STAFF',   '2026-01-17 09:00:00.000000', 5),
+(14, 'Huynh Thi Thao',        'thao.staff@inventory.com', '$2b$10$iwd.pYmqGnIBQms1UiIx5ujfpV1uGNa8Aw5H.rpi52H1hKZYpqSga', '0901000041', 'STAFF',   '2026-01-18 08:00:00.000000', 5),
+(15, 'Mai Van Quan',          'quan.staff@inventory.com', '$2b$10$iwd.pYmqGnIBQms1UiIx5ujfpV1uGNa8Aw5H.rpi52H1hKZYpqSga', '0901000042', 'STAFF',   '2026-01-18 09:00:00.000000', 5),
+(16, 'Vu Thi Trang',          'trang.staff@inventory.com','$2b$10$iwd.pYmqGnIBQms1UiIx5ujfpV1uGNa8Aw5H.rpi52H1hKZYpqSga', '0901000043', 'STAFF',   '2026-01-19 08:00:00.000000', 5);
 
 INSERT INTO categories (id, name, required_specs) VALUES
 (1, 'Electronics', '[{"groupName":"Thông số kỹ thuật","specs":["Brand","Model","Warranty"]}]'),

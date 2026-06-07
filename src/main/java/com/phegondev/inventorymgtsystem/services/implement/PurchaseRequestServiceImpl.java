@@ -299,6 +299,7 @@ public class PurchaseRequestServiceImpl implements PurchaseRequestService {
                     .build();
         }
 
+
         if (serialNumbers == null || serialNumbers.size() != request.getQuantity()) {
             return Response.builder()
                     .status(400)
@@ -323,6 +324,7 @@ public class PurchaseRequestServiceImpl implements PurchaseRequestService {
             item.setSerialNumber(serial);
             item.setProduct(request.getProduct());
             item.setStatus("IN_STOCK");
+            item.setTransaction(transaction);
             productItemRepository.save(item);
         }
 
