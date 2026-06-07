@@ -15,16 +15,7 @@ fi
 MYSQL_ROOT_PASSWORD="${MYSQL_ROOT_PASSWORD:-123456}"
 MYSQL_DATABASE="${MYSQL_DATABASE:-inventory_db}"
 
-PROJECT_ROOT="$(dirname "$BACKEND_ROOT")"
-if [ -f "$PROJECT_ROOT/docker-compose.yml" ]; then
-  COMPOSE_DIR="$PROJECT_ROOT"
-elif [ -f "$BACKEND_ROOT/docker-compose.yml" ]; then
-  COMPOSE_DIR="$BACKEND_ROOT"
-else
-  COMPOSE_DIR="$BACKEND_ROOT"
-fi
-
-cd "$COMPOSE_DIR"
+cd "$BACKEND_ROOT"
 
 if docker ps --format '{{.Names}}' | grep -q '^inventory-mysql$'; then
   docker exec -i inventory-mysql \
