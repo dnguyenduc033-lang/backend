@@ -29,4 +29,6 @@ public interface TransactionService {
     Response updateStatus(Long id, TransactionStatus status);
 
     List<String> extractSerialsFromExcel(MultipartFile file);
+
+    byte[] exportTransactionToPdf(Long transactionId);
 }

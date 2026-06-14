@@ -7,7 +7,7 @@ services:
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-123456}
       MYSQL_DATABASE: ${MYSQL_DATABASE:-inventory_db}
     ports:
-      - "${MYSQL_PORT:-3306}:3306"
+      - "${MYSQL_PORT:-3308}:3306"
     volumes:
       - mysql_data:/var/lib/mysql
     healthcheck:
@@ -34,6 +34,17 @@ services:
       APP_BASE_URL: http://localhost:${BACKEND_PORT:-5050}
     ports:
       - "${BACKEND_PORT:-5050}:5050"
+
+  frontend:
+    build:
+      context: ../Product Management/frontend
+      dockerfile: Dockerfile
+    container_name: inventory-frontend
+    restart: unless-stopped
+    depends_on:
+      - backend
+    ports:
+      - "3000:80"
 
 volumes:
   mysql_data:

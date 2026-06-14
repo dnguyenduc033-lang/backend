@@ -20,6 +20,13 @@ import com.phegondev.inventorymgtsystem.repositories.TransactionRepository;
 import com.phegondev.inventorymgtsystem.services.TransactionService;
 import com.phegondev.inventorymgtsystem.services.UserService;
 import com.phegondev.inventorymgtsystem.specification.TransactionFilter;
+import com.itextpdf.text.Document;
+import com.itextpdf.text.Element;
+import com.itextpdf.text.Font;
+import com.itextpdf.text.Paragraph;
+import com.itextpdf.text.pdf.PdfWriter;
+import com.itextpdf.text.pdf.BaseFont;
+
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.modelmapper.ModelMapper;
@@ -38,6 +45,11 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.math.RoundingMode;
+import java.io.ByteArrayOutputStream;
+import java.io.InputStream;
+import java.time.format.DateTimeFormatter;
+import java.text.NumberFormat;
+import java.util.Locale;
 
 @Service
 @RequiredArgsConstructor
@@ -467,5 +479,88 @@ public class TransactionServiceImpl implements TransactionService {
             throw new NameValueRequiredException("Không thể đọc file Excel. Vui lòng đảm bảo file đúng định dạng .xlsx");
         }
         return extractedSerials;
+    }
+
+    @Override
+    public byte[] exportTransactionToPdf(Long transactionId) {
+        Transaction transaction = transactionRepository.findById(transactionId)
+                .orElseThrow(() -> new NotFoundException("Transaction Not Found"));
+
+        try (ByteArrayOutputStream baos = new ByteArrayOutputStream()) {
+            Document document = new Document();
+            PdfWriter.getInstance(document, baos);
+            document.open();
+
+            // 1. TẢI FONT HỖ TRỢ TIẾNG VIỆT TỪ RESOURCES
+            InputStream fontStream = getClass().getResourceAsStream("/fonts/times.ttf");
+            if (fontStream == null) {
+                throw new RuntimeException("Không tìm thấy file times.ttf. Vui lòng kiểm tra lại thư mục src/main/resources/fonts/");
+            }
+            byte[] fontBytes = fontStream.readAllBytes();
+            BaseFont bf = BaseFont.createFont("times.ttf", BaseFont.IDENTITY_H, BaseFont.EMBEDDED, true, fontBytes, null);
+
+            Font titleFont = new Font(bf, 18, Font.BOLD);
+            Font boldFont = new Font(bf, 12, Font.BOLD);
+            Font normalFont = new Font(bf, 12, Font.NORMAL);
+
+            // 2. DỊCH TỪ KHÓA & FORMAT DỮ LIỆU
+            String loaiGiaoDich = switch (transaction.getTransactionType().name()) {
+                case "PURCHASE" -> "Nhập kho";
+                case "SALE", "SELL" -> "Xuất kho";
+                case "RETURN_TO_SUPPLIER" -> "Trả hàng cho nhà cung cấp";
+                case "CUSTOMER_RETURN" -> "Khách trả hàng";
+                default -> transaction.getTransactionType().name();
+            };
+
+            String trangThai = switch (transaction.getStatus().name()) {
+                case "COMPLETED" -> "Hoàn thành";
+                case "PENDING" -> "Chờ xử lý";
+                case "PROCESSING" -> "Đang xử lý";
+                case "CANCELLED" -> "Đã hủy";
+                default -> transaction.getStatus().name();
+            };
+
+            DateTimeFormatter dateFormatter = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm:ss");
+            String ngayTao = transaction.getCreatedAt() != null ? transaction.getCreatedAt().format(dateFormatter) : "N/A";
+
+            NumberFormat currencyFormat = NumberFormat.getInstance(new Locale("vi", "VN"));
+            String tongTien = transaction.getTotalPrice() != null ? currencyFormat.format(transaction.getTotalPrice()) : "0";
+
+            // --- 3. BẮT ĐẦU VẼ NỘI DUNG PDF ---
+            Paragraph title = new Paragraph("HỒ SƠ CHỨNG TỪ - GIAO DỊCH #" + transaction.getId(), titleFont);
+            title.setAlignment(Element.ALIGN_CENTER);
+            document.add(title);
+            document.add(new Paragraph(" ", normalFont));
+
+            document.add(new Paragraph("Loại Giao Dịch: " + loaiGiaoDich, boldFont));
+            document.add(new Paragraph("Trạng Thái: " + trangThai, boldFont));
+            document.add(new Paragraph("Ngày Tạo: " + ngayTao, normalFont));
+            document.add(new Paragraph("Tổng Giá Trị: " + tongTien + " VNĐ", boldFont));
+
+            document.add(new Paragraph(" ", normalFont));
+            document.add(new Paragraph("--- THÔNG TIN THIẾT BỊ ---", boldFont));
+            if (transaction.getProduct() != null) {
+                document.add(new Paragraph("Tên Thiết Bị: " + transaction.getProduct().getName(), normalFont));
+                document.add(new Paragraph("Mã SKU: " + transaction.getProduct().getSku(), normalFont));
+                document.add(new Paragraph("Số Lượng: " + transaction.getTotalProducts() + " chiếc", normalFont));
+            }
+
+            document.add(new Paragraph(" ", normalFont));
+            document.add(new Paragraph("--- DANH SÁCH SERIAL / IMEI ---", boldFont));
+            List<ProductItem> items = productItemRepository.findByTransactionId(transaction.getId());
+            if(items != null && !items.isEmpty()){
+                for(ProductItem item : items){
+                    document.add(new Paragraph("- " + item.getSerialNumber(), normalFont));
+                }
+            } else {
+                document.add(new Paragraph("Không có mã Serial đính kèm", normalFont));
+            }
+
+            document.close();
+            return baos.toByteArray();
+        } catch (Exception e) {
+            log.error("Lỗi khi tạo file PDF", e);
+            throw new RuntimeException("Hệ thống không thể tạo file PDF. Chi tiết: " + e.getMessage());
+        }
     }
 }

@@ -4,12 +4,14 @@ import com.phegondev.inventorymgtsystem.dtos.ProductDTO;
 import com.phegondev.inventorymgtsystem.dtos.Response;
 import com.phegondev.inventorymgtsystem.services.ProductService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 
 @RestController
 @RequestMapping("/api/products")
@@ -77,5 +79,11 @@ public class ProductController {
     @PreAuthorize("hasAnyAuthority('ADMIN', 'MANAGER')")
     public ResponseEntity<Response> getLowStockProducts() {
         return ResponseEntity.ok(productService.getLowStockProducts());
+    }
+
+    @GetMapping("/by-date")
+    public ResponseEntity<Response> getProductsByDate(
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
+        return ResponseEntity.ok(productService.getProductsByDate(date));
     }
 }

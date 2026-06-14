@@ -17,6 +17,8 @@ public interface ProductService {
 
     Response searchProduct(String input);
 
+    Response getProductsByDate(java.time.LocalDate date);
+
     // --- BỔ SUNG ĐỂ HẾT LỖI ĐỎ Ở CONTROLLER ---
     Response addSpecification(Long productId, String key, String value);
     Response getProductItemBySerial(String serialNumber);

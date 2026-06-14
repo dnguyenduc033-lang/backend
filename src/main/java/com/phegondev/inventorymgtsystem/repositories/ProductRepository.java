@@ -4,6 +4,8 @@ import com.phegondev.inventorymgtsystem.models.Product;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
+
+import java.time.LocalDateTime;
 import java.util.List;
 
 public interface ProductRepository extends JpaRepository<Product, Long> {
@@ -11,6 +13,9 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
 
     @Query("SELECT p FROM Product p WHERE p.stockQuantity <= p.minStockLevel")
     List<Product> findLowStockProducts();
+
+    @Query("SELECT p FROM Product p WHERE p.createdAt >= :startDate AND p.createdAt <= :endDate")
+    List<Product> findProductsByCreatedAtDate(@Param("startDate") LocalDateTime startDate, @Param("endDate") LocalDateTime endDate);
 
     // 🌟 THÊM HÀM NÀY: Truy vấn thông minh liên kết (JOIN) sang bảng Specs để quét được cả trường 'Hãng'
     @Query("SELECT DISTINCT p FROM Product p LEFT JOIN p.specs s " +

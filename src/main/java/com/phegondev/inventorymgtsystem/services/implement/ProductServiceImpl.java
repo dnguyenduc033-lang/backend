@@ -24,6 +24,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.time.LocalDate;
+import java.time.LocalTime;
+import java.time.LocalDateTime;
+
 import java.io.File;
 import java.util.List;
 import java.util.UUID;
@@ -246,5 +250,17 @@ public class ProductServiceImpl implements ProductService {
         } catch (Exception e) {
             throw new IllegalArgumentException("Error uploading Image to Cloud: " + e.getMessage());
         }
+    }
+
+    @Override
+    public Response getProductsByDate(LocalDate date) {
+        // Lấy từ 00:00:00 đến 23:59:59 của ngày được chọn
+        LocalDateTime startDate = date.atStartOfDay();
+        LocalDateTime endDate = date.atTime(LocalTime.MAX);
+
+        List<Product> productList = productRepository.findProductsByCreatedAtDate(startDate, endDate);
+
+        List<ProductDTO> productDTOList = modelMapper.map(productList, new TypeToken<List<ProductDTO>>() {}.getType());
+        return Response.builder().status(200).message("success").products(productDTOList).build();
     }
 }

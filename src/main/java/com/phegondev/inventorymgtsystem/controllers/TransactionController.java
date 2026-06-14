@@ -10,6 +10,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 
 import java.util.List;
 
@@ -93,5 +95,16 @@ public class TransactionController {
     @PostMapping("/extract-serials")
     public ResponseEntity<List<String>> extractSerialsFromExcel(@RequestParam("file") MultipartFile file) {
         return ResponseEntity.ok(transactionService.extractSerialsFromExcel(file));
+    }
+
+    @GetMapping("/{id}/export-pdf")
+    public ResponseEntity<byte[]> exportPdf(@PathVariable Long id) {
+        byte[] pdfBytes = transactionService.exportTransactionToPdf(id);
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_PDF);
+        headers.setContentDispositionFormData("attachment", "GiaoDich_" + id + ".pdf");
+        return ResponseEntity.ok()
+                .headers(headers)
+                .body(pdfBytes);
     }
 }
