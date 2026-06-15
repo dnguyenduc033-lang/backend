@@ -23,11 +23,6 @@ public class TransactionController {
 
     private final TransactionService transactionService;
 
-    @PostMapping("/purchase")
-    public ResponseEntity<Response> purchaseInventory(@RequestBody @Valid TransactionRequest transactionRequest) {
-        return ResponseEntity.ok(transactionService.purchase(transactionRequest));
-    }
-
     @PostMapping("/sell")
     public ResponseEntity<Response> makeSale(@RequestBody @Valid TransactionRequest transactionRequest) {
         return ResponseEntity.ok(transactionService.sell(transactionRequest));

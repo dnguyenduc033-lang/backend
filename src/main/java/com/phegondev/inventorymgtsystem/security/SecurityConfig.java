@@ -62,9 +62,6 @@ public class SecurityConfig {
                         .requestMatchers("/api/categories/**").hasAnyAuthority("ADMIN", "MANAGER")
                         .requestMatchers("/api/suppliers/**").hasAnyAuthority("ADMIN", "MANAGER")
 
-                        // Nhập kho: chỉ MANAGER
-                        .requestMatchers(org.springframework.http.HttpMethod.POST,
-                                "/api/transactions/purchase").hasAuthority("MANAGER")
                         // Bán hàng, đổi trả: MANAGER và STAFF
                         .requestMatchers(org.springframework.http.HttpMethod.POST,
                                 "/api/transactions/sell",

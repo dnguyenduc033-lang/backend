@@ -63,64 +63,6 @@ public class TransactionServiceImpl implements TransactionService {
     private final UserService userService;
     private final ModelMapper modelMapper;
 
-    @Override
-    public Response purchase(TransactionRequest transactionRequest) {
-        Long productId = transactionRequest.getProductId();
-        Integer quantity = transactionRequest.getQuantity();
-
-        Product product = productRepository.findById(productId)
-                .orElseThrow(() -> new NotFoundException("Product Not Found"));
-        User currentUser = userService.getCurrentLoggedInUser();
-
-        if (transactionRequest.getSupplierId() == null) {
-            throw new NameValueRequiredException("Nhập hàng mới bắt buộc phải chọn Nhà cung cấp");
-        }
-        if (transactionRequest.getPurchasePrice() == null || transactionRequest.getPurchasePrice().compareTo(BigDecimal.ZERO) <= 0) {
-            throw new NameValueRequiredException("Đơn giá nhập kho là bắt buộc và phải lớn hơn 0");
-        }
-
-        Supplier supplier = supplierRepository.findById(transactionRequest.getSupplierId())
-                .orElseThrow(() -> new NotFoundException("Supplier Not Found"));
-
-        BigDecimal purchasePrice = transactionRequest.getPurchasePrice();
-        BigDecimal totalPrice = purchasePrice.multiply(BigDecimal.valueOf(quantity));
-        Transaction transaction = Transaction.builder()
-                .transactionType(TransactionType.PURCHASE)
-                .status(TransactionStatus.COMPLETED)
-                .product(product)
-                .supplier(supplier)
-                .totalProducts(quantity)
-                .totalPrice(totalPrice)
-                .purchasePrice(purchasePrice)
-
-                .profit(BigDecimal.ZERO)
-                .description(transactionRequest.getDescription())
-                .note(transactionRequest.getNote())
-                .user(currentUser)
-                .build();
-
-        transactionRepository.save(transaction);
-
-        product.setStockQuantity(product.getStockQuantity() + quantity);
-        productRepository.save(product);
-
-        List<String> serialNumbers = transactionRequest.getSerialNumbers();
-        if (serialNumbers != null && !serialNumbers.isEmpty()) {
-            for (String serial : serialNumbers) {
-                ProductItem item = new ProductItem();
-                item.setProduct(product);
-                item.setSerialNumber(serial);
-                item.setStatus("AVAILABLE");
-                item.setTransaction(transaction);
-                productItemRepository.save(item);
-            }
-        }
-
-        return Response.builder()
-                .status(200)
-                .message("Nhập kho thành công")
-                .build();
-    }
 
     @Override
     public Response returnFromCustomer(TransactionRequest transactionRequest) {

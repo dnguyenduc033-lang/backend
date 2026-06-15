@@ -8,7 +8,6 @@ import org.springframework.web.multipart.MultipartFile;
 import java.util.List;
 
 public interface TransactionService {
-    Response purchase(TransactionRequest transactionRequest);
 
     Response sell(TransactionRequest transactionRequest);
 
