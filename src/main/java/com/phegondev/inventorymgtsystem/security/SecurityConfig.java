@@ -50,6 +50,8 @@ public class SecurityConfig {
                         .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/news/**").hasAnyAuthority("ADMIN", "MANAGER", "STAFF")
 
                         .requestMatchers("/api/users/current").hasAnyAuthority("ADMIN", "MANAGER", "STAFF")
+                        // Mở khóa tuyến đường cập nhật cho mọi vai trò
+                        .requestMatchers(org.springframework.http.HttpMethod.PUT, "/api/users/update/**").hasAnyAuthority("ADMIN", "MANAGER", "STAFF")
                         .requestMatchers("/api/users/**").hasAuthority("ADMIN")
 
                         // 3. ADMIN & MANAGER: Thêm/sửa/xóa. STAFF: chỉ xem (GET)

@@ -155,6 +155,19 @@ public class UserServiceImpl implements UserService {
     public Response updateUser(Long id, UserDTO userDTO) {
 
         User existingUser = userRepository.findById(id).orElseThrow(() -> new NotFoundException("User Not Found"));
+        User currentUser = getCurrentLoggedInUser(); // Lấy tài khoản đang gửi request
+
+        // Chặn tài khoản cấp thấp cố tình cập nhật hồ sơ người khác
+        if (currentUser.getRole() != UserRole.ADMIN && !existingUser.getId().equals(currentUser.getId())) {
+            throw new BadRequestException("Bạn không có quyền chỉnh sửa hồ sơ của người khác!");
+        }
+
+        // Chặn tài khoản cấp thấp tự nâng quyền (leo thang đặc quyền)
+        if (currentUser.getRole() != UserRole.ADMIN) {
+            if (userDTO.getRole() != null || userDTO.getManagerId() != null || Boolean.TRUE.equals(userDTO.getClearManager())) {
+                throw new BadRequestException("Bạn không có quyền thay đổi vai trò hoặc người quản lý!");
+            }
+        }
 
         if (userDTO.getEmail() != null) existingUser.setEmail(userDTO.getEmail());
         if (userDTO.getPhoneNumber() != null) existingUser.setPhoneNumber(userDTO.getPhoneNumber());
@@ -168,6 +181,10 @@ public class UserServiceImpl implements UserService {
         }
 
         if (userDTO.getPassword() != null && !userDTO.getPassword().isEmpty()) {
+            // Chặn Admin hoặc bất kỳ ai đổi mật khẩu của người khác
+            if (!existingUser.getId().equals(currentUser.getId())) {
+                throw new BadRequestException("Hành động bị từ chối: Bất kể vai trò nào cũng chỉ được đổi mật khẩu của chính mình!");
+            }
             existingUser.setPassword(passwordEncoder.encode(userDTO.getPassword()));
         }
         userRepository.save(existingUser);
