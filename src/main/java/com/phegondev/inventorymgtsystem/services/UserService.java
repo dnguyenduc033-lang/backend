@@ -23,6 +23,10 @@ public interface UserService {
 
     Response deleteUser(Long id);
 
+    Response resetPasswordByAdmin(Long id, String newPassword);
+
+    Response changeOwnPassword(Long id, String oldPassword, String newPassword);
+
     Response getUserTransactions(Long id);
 
     Response getOrgTree();

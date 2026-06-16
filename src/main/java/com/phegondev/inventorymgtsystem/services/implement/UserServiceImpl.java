@@ -213,6 +213,57 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
+    public Response resetPasswordByAdmin(Long id, String newPassword) {
+        User existingUser = userRepository.findById(id).orElseThrow(() -> new NotFoundException("User Not Found"));
+        User currentUser = getCurrentLoggedInUser();
+
+        // Kiểm tra bảo mật kép: Đảm bảo chắc chắn người gọi là Admin
+        if (currentUser.getRole() != UserRole.ADMIN) {
+            throw new BadRequestException("Hành động bị từ chối: Chỉ Quản trị viên (ADMIN) mới có quyền cấp lại mật khẩu!");
+        }
+
+        // Tiến hành mã hóa (hash) mật khẩu mới và lưu lại
+        existingUser.setPassword(passwordEncoder.encode(newPassword));
+        userRepository.save(existingUser);
+
+        return Response.builder()
+                .status(200)
+                .message("Cấp lại mật khẩu thành công cho tài khoản: " + existingUser.getEmail())
+                .build();
+    }
+
+    @Override
+    public Response changeOwnPassword(Long id, String oldPassword, String newPassword) {
+        User existingUser = userRepository.findById(id).orElseThrow(() -> new NotFoundException("Không tìm thấy người dùng"));
+        User currentUser = getCurrentLoggedInUser();
+
+        // Đảm bảo chỉ được tự đổi cho chính mình
+        if (!existingUser.getId().equals(currentUser.getId())) {
+            throw new BadRequestException("Hành động bị từ chối: Bạn chỉ có thể tự đổi mật khẩu của chính mình!");
+        }
+
+        // TẠI ĐÂY: Thêm điều kiện miễn trừ cho ADMIN
+        if (currentUser.getRole() != UserRole.ADMIN) {
+            // Chỉ Manager và Staff mới bị kiểm tra mật khẩu cũ
+            if (oldPassword == null || oldPassword.trim().isEmpty()) {
+                throw new BadRequestException("Vui lòng nhập mật khẩu cũ!");
+            }
+            if (!passwordEncoder.matches(oldPassword, existingUser.getPassword())) {
+                throw new BadRequestException("Mật khẩu cũ không chính xác!");
+            }
+        }
+
+        // Mã hóa và lưu mật khẩu mới
+        existingUser.setPassword(passwordEncoder.encode(newPassword));
+        userRepository.save(existingUser);
+
+        return Response.builder()
+                .status(200)
+                .message("Đổi mật khẩu thành công!")
+                .build();
+    }
+
+    @Override
     public Response getUserTransactions(Long id) {
 
         User user = userRepository.findById(id).orElseThrow(() -> new NotFoundException("User Not Found"));
