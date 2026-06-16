@@ -5,13 +5,13 @@ import com.phegondev.inventorymgtsystem.dtos.ProductSpecDTO;
 import com.phegondev.inventorymgtsystem.dtos.Response;
 import com.phegondev.inventorymgtsystem.exceptions.NotFoundException;
 import com.phegondev.inventorymgtsystem.models.Category;
+import com.phegondev.inventorymgtsystem.models.Brand;
+import com.phegondev.inventorymgtsystem.models.Supplier;
+import com.phegondev.inventorymgtsystem.repositories.SupplierRepository;
 import com.phegondev.inventorymgtsystem.models.Product;
 import com.phegondev.inventorymgtsystem.models.ProductItem;
 import com.phegondev.inventorymgtsystem.models.ProductSpecification;
-import com.phegondev.inventorymgtsystem.repositories.CategoryRepository;
-import com.phegondev.inventorymgtsystem.repositories.ProductItemRepository;
-import com.phegondev.inventorymgtsystem.repositories.ProductRepository;
-import com.phegondev.inventorymgtsystem.repositories.ProductSpecificationRepository;
+import com.phegondev.inventorymgtsystem.repositories.*;
 import com.phegondev.inventorymgtsystem.services.ProductService;
 import com.cloudinary.Cloudinary;
 
@@ -42,19 +42,20 @@ public class ProductServiceImpl implements ProductService {
     private final ProductRepository productRepository;
     private final ModelMapper modelMapper;
     private final CategoryRepository categoryRepository;
-    // --- BỔ SUNG REPOSITORY ---
+    private final BrandRepository brandRepository;
+    private final SupplierRepository supplierRepository;
     private final ProductItemRepository productItemRepository; //
     private final ProductSpecificationRepository specRepository; //
-    // THÊM DÒNG NÀY VÀO ĐÂY:
     private final Cloudinary cloudinary;
 
-    // KHỐI CODE BẠN CHÈN VÀO TẠI ĐÂY:
     @jakarta.annotation.PostConstruct
     public void initModelMapper() {
         if (modelMapper.getTypeMap(Product.class, ProductDTO.class) == null) {
             modelMapper.typeMap(Product.class, ProductDTO.class).addMappings(mapper -> {
-                // Tự động bóc tách ID danh mục gán vào trường phẳng categoryId của ProductDTO
                 mapper.map(src -> src.getCategory().getId(), ProductDTO::setCategoryId);
+                mapper.map(src -> src.getBrand().getId(), ProductDTO::setBrandId);
+                mapper.map(src -> src.getBrand().getName(), ProductDTO::setBrandName);
+                mapper.map(src -> src.getSupplier().getId(), ProductDTO::setSupplierId);
             });
         }
     }
@@ -63,7 +64,12 @@ public class ProductServiceImpl implements ProductService {
     @Transactional
     public Response saveProduct(ProductDTO productDTO, MultipartFile imageFile) {
         Category category = categoryRepository.findById(productDTO.getCategoryId())
-                .orElseThrow(() -> new NotFoundException("Category Not Found"));
+                .orElseThrow(() -> new NotFoundException("Không tìm thấy danh mục"));
+        Brand brand = brandRepository.findById(productDTO.getBrandId())
+                .orElseThrow(() -> new NotFoundException("Không tìm thấy hãng sản xuất"));
+
+        Supplier supplier = supplierRepository.findById(productDTO.getSupplierId())
+                .orElseThrow(() -> new NotFoundException("Không tìm thấy nhà cung cấp"));
 
         Product productToSave = Product.builder()
                 .name(productDTO.getName())
@@ -74,6 +80,8 @@ public class ProductServiceImpl implements ProductService {
                 .warrantyMonths(productDTO.getWarrantyMonths())
                 .minStockLevel(productDTO.getMinStockLevel())
                 .category(category)
+                .brand(brand)
+                .supplier(supplier)
                 .build();
 
         // Xử lý lưu Thông số kỹ thuật (Specs)
@@ -109,13 +117,24 @@ public class ProductServiceImpl implements ProductService {
             existingProduct.setCategory(category);
         }
 
+        if (productDTO.getBrandId() != null && productDTO.getBrandId() > 0) {
+            Brand brand = brandRepository.findById(productDTO.getBrandId())
+                    .orElseThrow(() -> new NotFoundException("Không tìm thấy hãng sản xuất"));
+            existingProduct.setBrand(brand);
+        }
+
+        if (productDTO.getSupplierId() != null && productDTO.getSupplierId() > 0) {
+            Supplier supplier = supplierRepository.findById(productDTO.getSupplierId())
+                    .orElseThrow(() -> new NotFoundException("Không tìm thấy nhà cung cấp"));
+            existingProduct.setSupplier(supplier);
+        }
+
         if (productDTO.getName() != null) existingProduct.setName(productDTO.getName());
         if (productDTO.getSku() != null) existingProduct.setSku(productDTO.getSku());
         if (productDTO.getPrice() != null) existingProduct.setPrice(productDTO.getPrice());
         if (productDTO.getStockQuantity() != null) existingProduct.setStockQuantity(productDTO.getStockQuantity());
         if (productDTO.getDescription() != null) existingProduct.setDescription(productDTO.getDescription());
 
-        // <--- CHỈNH SỬA TẠI ĐÂY: Bổ sung cập nhật các trường mới trong hàm update --->
         if (productDTO.getWarrantyMonths() != null) existingProduct.setWarrantyMonths(productDTO.getWarrantyMonths());
         if (productDTO.getMinStockLevel() != null) existingProduct.setMinStockLevel(productDTO.getMinStockLevel());
         if (productDTO.getLocation() != null) existingProduct.setLocation(productDTO.getLocation().trim());

@@ -58,9 +58,11 @@ public class SecurityConfig {
                         .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/products/**").hasAnyAuthority("ADMIN", "MANAGER", "STAFF")
                         .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/categories/**").hasAnyAuthority("ADMIN", "MANAGER", "STAFF")
                         .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/suppliers/**").hasAnyAuthority("ADMIN", "MANAGER", "STAFF")
+                        .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/brands/**").hasAnyAuthority("ADMIN", "MANAGER", "STAFF")
                         .requestMatchers("/api/products/**").hasAnyAuthority("ADMIN", "MANAGER")
                         .requestMatchers("/api/categories/**").hasAnyAuthority("ADMIN", "MANAGER")
                         .requestMatchers("/api/suppliers/**").hasAnyAuthority("ADMIN", "MANAGER")
+                        .requestMatchers("/api/brands/**").hasAnyAuthority("ADMIN", "MANAGER")
 
                         // Bán hàng, đổi trả: MANAGER và STAFF
                         .requestMatchers(org.springframework.http.HttpMethod.POST,

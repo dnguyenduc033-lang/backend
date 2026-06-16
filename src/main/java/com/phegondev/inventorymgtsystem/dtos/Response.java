@@ -37,6 +37,9 @@ public class Response {
     private CategoryDTO category;
     private List<CategoryDTO> categories;
 
+    private BrandDTO brand;
+    private List<BrandDTO> brands;
+
     private ProductDTO product;
     private List<ProductDTO> products;
 
