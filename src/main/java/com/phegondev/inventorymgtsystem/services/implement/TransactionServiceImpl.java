@@ -505,4 +505,87 @@ public class TransactionServiceImpl implements TransactionService {
             throw new RuntimeException("Hệ thống không thể tạo file PDF. Chi tiết: " + e.getMessage());
         }
     }
+
+    @Override
+    public byte[] exportWarrantyPdfBySerial(String serialNumber) {
+        // 1. Tìm sản phẩm dựa trên số Serial/IMEI
+        ProductItem item = productItemRepository.findBySerialNumber(serialNumber)
+                .orElseThrow(() -> new NotFoundException("Không tìm thấy mã Serial/IMEI: " + serialNumber));
+
+        // Kiểm tra xem sản phẩm đã bán và có hóa đơn chưa để tính ngày kích hoạt
+        if (!"SOLD".equals(item.getStatus()) || item.getTransaction() == null) {
+            throw new NotFoundException("Sản phẩm này chưa được xuất bán hoặc chưa có lịch sử kích hoạt bảo hành.");
+        }
+
+        Transaction transaction = item.getTransaction();
+        Product product = item.getProduct();
+
+        try (ByteArrayOutputStream baos = new ByteArrayOutputStream()) {
+            Document document = new Document();
+            PdfWriter.getInstance(document, baos);
+            document.open();
+
+            // 2. Tải Font hỗ trợ tiếng Việt từ tài nguyên hệ thống
+            InputStream fontStream = getClass().getResourceAsStream("/fonts/times.ttf");
+            if (fontStream == null) {
+                throw new RuntimeException("Không tìm thấy file times.ttf trong thư mục src/main/resources/fonts/");
+            }
+            byte[] fontBytes = fontStream.readAllBytes();
+            BaseFont bf = BaseFont.createFont("times.ttf", BaseFont.IDENTITY_H, BaseFont.EMBEDDED, true, fontBytes, null);
+
+            Font titleFont = new Font(bf, 20, Font.BOLD);
+            Font sectionFont = new Font(bf, 14, Font.BOLD);
+            Font boldFont = new Font(bf, 12, Font.BOLD);
+            Font normalFont = new Font(bf, 12, Font.NORMAL);
+
+            // --- 3. VẼ NỘI DUNG CHUYÊN BIỆT CHO PHIẾU BẢO HÀNH ---
+            Paragraph title = new Paragraph("PHIẾU BẢO HÀNH THIẾT BỊ", titleFont);
+            title.setAlignment(Element.ALIGN_CENTER);
+            document.add(title);
+
+            Paragraph subTitle = new Paragraph("Mã số định danh: " + serialNumber, normalFont);
+            subTitle.setAlignment(Element.ALIGN_CENTER);
+            document.add(subTitle);
+            document.add(new Paragraph(" ", normalFont));
+
+            // Khối thông tin chứng từ gốc
+            document.add(new Paragraph("--- THÔNG TIN CHỨNG TỪ GỐC ---", sectionFont));
+            DateTimeFormatter dateFormatter = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm:ss");
+            String ngayKichHoat = transaction.getCreatedAt() != null ? transaction.getCreatedAt().format(dateFormatter) : "N/A";
+            document.add(new Paragraph("Ngày mua (Kích hoạt bảo hành): " + ngayKichHoat, normalFont));
+            document.add(new Paragraph("Mã hóa đơn liên kết: #" + transaction.getId(), normalFont));
+            document.add(new Paragraph("Nhân viên xác nhận: " + (transaction.getUser() != null ? transaction.getUser().getName() : "Hệ thống"), normalFont));
+
+            document.add(new Paragraph(" ", normalFont));
+
+            // Khối thông tin chi tiết thiết bị được bảo hành
+            document.add(new Paragraph("--- THÔNG TIN THIẾT BỊ BẢO HÀNH ---", sectionFont));
+            document.add(new Paragraph("Tên sản phẩm: " + product.getName(), normalFont));
+            document.add(new Paragraph("Mã định danh SKU: " + product.getSku(), normalFont));
+            document.add(new Paragraph("Số Serial / IMEI hệ thống: " + item.getSerialNumber(), boldFont));
+
+            int months = product.getWarrantyMonths() != null ? product.getWarrantyMonths() : 0;
+            document.add(new Paragraph("Thời hạn bảo hành quy định: " + months + " Tháng", boldFont));
+
+            // Tính toán tự động ngày hết hạn chính xác dựa trên ngày mua hàng
+            if (transaction.getCreatedAt() != null) {
+                LocalDateTime expireDate = transaction.getCreatedAt().plusMonths(months);
+                document.add(new Paragraph("Thời điểm hết hạn bảo hành: " + expireDate.format(dateFormatter), boldFont));
+            }
+
+            document.add(new Paragraph(" ", normalFont));
+
+            // Khối điều khoản quy định trách nhiệm bảo hành
+            document.add(new Paragraph("--- ĐIỀU KIỆN BẢO HÀNH HỢP LỆ ---", sectionFont));
+            document.add(new Paragraph("1. Thiết bị phải còn nguyên tem bảo hành niêm phong, số Serial/IMEI trùng khớp hoàn toàn, không có dấu hiệu tẩy xóa hay mờ nhòe.", normalFont));
+            document.add(new Paragraph("2. Lỗi kỹ thuật phát sinh bên trong phần cứng và được xác định do nhà sản xuất trong thời hạn quy định trên phiếu.", normalFont));
+            document.add(new Paragraph("3. Hệ thống từ chối bảo hành đối với các trường hợp sản phẩm bị rơi vỡ, nứt móp, có dấu hiệu vào nước, cháy nổ linh kiện hoặc đã bị can thiệp, sửa chữa trái phép bởi các bên thứ ba.", normalFont));
+
+            document.close();
+            return baos.toByteArray();
+        } catch (Exception e) {
+            log.error("Lỗi khi tạo file PDF phiếu bảo hành", e);
+            throw new RuntimeException("Hệ thống không thể tạo file PDF bảo hành. Chi tiết: " + e.getMessage());
+        }
+    }
 }

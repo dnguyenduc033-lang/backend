@@ -19,8 +19,6 @@ import java.util.List;
 @RequestMapping("/api/transactions")
 @RequiredArgsConstructor
 public class TransactionController {
-
-
     private final TransactionService transactionService;
 
     @PostMapping("/sell")
@@ -98,6 +96,18 @@ public class TransactionController {
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_PDF);
         headers.setContentDispositionFormData("attachment", "GiaoDich_" + id + ".pdf");
+        return ResponseEntity.ok()
+                .headers(headers)
+                .body(pdfBytes);
+    }
+
+    @GetMapping("/export-pdf/{serialNumber}")
+    public ResponseEntity<byte[]> exportWarrantyPdfBySerial(@PathVariable String serialNumber) {
+        byte[] pdfBytes = transactionService.exportWarrantyPdfBySerial(serialNumber);
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_PDF);
+        // Đặt tên file khi tải về sẽ có dạng: BaoHanh_IMEI-1234.pdf
+        headers.setContentDispositionFormData("attachment", "BaoHanh_" + serialNumber + ".pdf");
         return ResponseEntity.ok()
                 .headers(headers)
                 .body(pdfBytes);

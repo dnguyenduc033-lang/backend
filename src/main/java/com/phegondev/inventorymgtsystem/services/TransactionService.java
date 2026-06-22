@@ -30,4 +30,6 @@ public interface TransactionService {
     List<String> extractSerialsFromExcel(MultipartFile file);
 
     byte[] exportTransactionToPdf(Long transactionId);
+
+    byte[] exportWarrantyPdfBySerial(String serialNumber);
 }
